@@ -133,20 +133,10 @@ export default function App() {
       {/* Header */}
       <header className="px-6 py-6 flex justify-between items-start gap-4 max-w-2xl mx-auto">
         
-        {/* Titre (Verset) à Gauche */}
-        <div className="flex-1 cursor-pointer pt-1" onClick={goHome}>
-          <blockquote className={`font-serif text-sm italic leading-relaxed border-l-2 pl-3 ${theme === 'dark' ? 'text-stone-300 border-indigo-500' : 'text-stone-600 border-indigo-300'}`}>
-            "Voici que je me tiens à la porte, et je frappe. Si quelqu’un entend ma voix et ouvre la porte, j’entrerai chez lui ; je prendrai mon repas avec lui, et lui avec moi."
-          </blockquote>
-          <div className={`text-xs font-bold mt-1 pl-3 ${theme === 'dark' ? 'text-indigo-400' : 'text-indigo-700'}`}>
-            Ap 3,20
-          </div>
-        </div>
-        
-        {/* Droite: Boutons + Logo */}
-        <div className="flex flex-col items-end gap-3 shrink-0">
+        {/* Gauche : Boutons + Verset */}
+        <div className="flex-1 flex flex-col items-start gap-4">
           
-          {/* Boutons d'action */}
+          {/* Boutons d'action déplacés à gauche */}
           <div className="flex gap-2">
              <button 
               onClick={() => setView('settings')}
@@ -162,11 +152,23 @@ export default function App() {
             </button>
           </div>
 
-          {/* Logo déplacé à droite avec conservation du ratio */}
+          {/* Titre (Verset) */}
+          <div className="cursor-pointer pt-1" onClick={goHome}>
+            <blockquote className={`font-serif text-sm italic leading-relaxed border-l-2 pl-3 ${theme === 'dark' ? 'text-stone-300 border-indigo-500' : 'text-stone-600 border-indigo-300'}`}>
+              "Voici que je me tiens à la porte, et je frappe. Si quelqu’un entend ma voix et ouvre la porte, j’entrerai chez lui ; je prendrai mon repas avec lui, et lui avec moi."
+            </blockquote>
+            <div className={`text-xs font-bold mt-1 pl-3 ${theme === 'dark' ? 'text-indigo-400' : 'text-indigo-700'}`}>
+              Ap 3,20
+            </div>
+          </div>
+        </div>
+        
+        {/* Droite: Logo seul */}
+        <div className="shrink-0">
           <img 
             src="/logo.jpg" 
             alt="Logo" 
-            className={`h-32 w-auto rounded-lg shadow-md border ${theme === 'dark' ? 'border-stone-700' : 'border-stone-200'}`}
+            className={`h-64 w-auto rounded-lg shadow-md border ${theme === 'dark' ? 'border-stone-700' : 'border-stone-200'}`}
             onError={(e) => {
                e.target.style.display = 'none';
             }}

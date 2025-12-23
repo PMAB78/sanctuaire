@@ -388,9 +388,9 @@ function GuidedSession({ onExit, stepsConfig, theme }) {
   const progress = ((stepIndex + 1) / stepsConfig.length) * 100;
 
   return (
-    // Utilisation de h-screen pour prendre toute la hauteur en mode immersif
-    <div className="flex flex-col h-screen max-w-2xl mx-auto px-4 py-6">
-      <div className="flex justify-between items-center mb-6">
+    // Utilisation de fixed inset-0 pour garantir le plein écran mobile sans scroll de page
+    <div className={`fixed inset-0 z-50 flex flex-col max-w-2xl mx-auto px-4 py-4 ${theme === 'dark' ? 'bg-stone-900' : 'bg-stone-50'}`}>
+      <div className="flex justify-between items-center mb-4 shrink-0">
         <button onClick={onExit} className={`p-2 rounded-full ${theme === 'dark' ? 'hover:bg-stone-700' : 'hover:bg-stone-200'}`}>
           <X size={24} />
         </button>
@@ -400,7 +400,7 @@ function GuidedSession({ onExit, stepsConfig, theme }) {
         <div className="w-8"></div>
       </div>
 
-      <Card theme={theme} className="flex-1 flex flex-col relative overflow-hidden !p-0">
+      <Card theme={theme} className="flex-1 flex flex-col relative overflow-hidden !p-0 min-h-0">
         <div className="pt-2 pb-1 px-4 text-center shrink-0">
            <span className="text-xs uppercase tracking-widest font-bold text-indigo-500">Étape {stepIndex + 1}/{stepsConfig.length}</span>
            <h2 className={`text-xl font-serif mt-1 ${theme === 'dark' ? 'text-stone-100' : 'text-stone-800'}`}>{currentStep.title}</h2>

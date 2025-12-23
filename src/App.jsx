@@ -131,36 +131,46 @@ export default function App() {
     <div className={`min-h-screen font-sans transition-colors duration-500 ${theme === 'dark' ? 'bg-stone-900 text-stone-100' : 'bg-stone-50 text-stone-800'}`}>
       
       {/* Header */}
-      <header className="px-6 py-4 flex justify-between items-center max-w-2xl mx-auto">
-        <div className="flex items-center gap-3 cursor-pointer" onClick={goHome}>
-          {/* Logo personnalisé */}
+      <header className="px-6 py-6 flex justify-between items-start gap-4 max-w-2xl mx-auto">
+        
+        {/* Titre (Verset) à Gauche */}
+        <div className="flex-1 cursor-pointer pt-1" onClick={goHome}>
+          <blockquote className={`font-serif text-sm italic leading-relaxed border-l-2 pl-3 ${theme === 'dark' ? 'text-stone-300 border-indigo-500' : 'text-stone-600 border-indigo-300'}`}>
+            "Voici que je me tiens à la porte, et je frappe. Si quelqu’un entend ma voix et ouvre la porte, j’entrerai chez lui ; je prendrai mon repas avec lui, et lui avec moi."
+          </blockquote>
+          <div className={`text-xs font-bold mt-1 pl-3 ${theme === 'dark' ? 'text-indigo-400' : 'text-indigo-700'}`}>
+            Ap 3,20
+          </div>
+        </div>
+        
+        {/* Droite: Boutons + Logo */}
+        <div className="flex flex-col items-end gap-3 shrink-0">
+          
+          {/* Boutons d'action */}
+          <div className="flex gap-2">
+             <button 
+              onClick={() => setView('settings')}
+              className={`p-2 rounded-full ${theme === 'dark' ? 'hover:bg-stone-800 text-stone-400' : 'hover:bg-stone-200 text-stone-600'}`}
+            >
+              <Settings size={20} />
+            </button>
+            <button 
+              onClick={() => setTheme(prev => prev === 'light' ? 'dark' : 'light')}
+              className={`p-2 rounded-full ${theme === 'dark' ? 'hover:bg-stone-800' : 'hover:bg-stone-200'}`}
+            >
+              {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
+            </button>
+          </div>
+
+          {/* Logo déplacé à droite avec conservation du ratio */}
           <img 
             src="/logo.jpg" 
             alt="Logo" 
-            className={`w-20 h-20 rounded-xl object-cover shadow-sm border ${theme === 'dark' ? 'border-stone-700' : 'border-stone-200'}`}
+            className={`h-32 w-auto rounded-lg shadow-md border ${theme === 'dark' ? 'border-stone-700' : 'border-stone-200'}`}
             onError={(e) => {
-               // Fallback discret si l'image n'est pas trouvée
                e.target.style.display = 'none';
-               e.target.nextSibling.style.display = 'flex'; // Affiche l'icône de secours si on en mettait une
             }}
           />
-          {/* Icône de secours cachée par défaut, visible si l'image plante (via JS custom si besoin) ou simple texte */}
-          <span className="text-xl font-semibold tracking-tight">Sanctuaire</span>
-        </div>
-        
-        <div className="flex gap-2">
-           <button 
-            onClick={() => setView('settings')}
-            className={`p-2 rounded-full ${theme === 'dark' ? 'hover:bg-stone-800 text-stone-400' : 'hover:bg-stone-200 text-stone-600'}`}
-          >
-            <Settings size={20} />
-          </button>
-          <button 
-            onClick={() => setTheme(prev => prev === 'light' ? 'dark' : 'light')}
-            className={`p-2 rounded-full ${theme === 'dark' ? 'hover:bg-stone-800' : 'hover:bg-stone-200'}`}
-          >
-            {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
-          </button>
         </div>
       </header>
 

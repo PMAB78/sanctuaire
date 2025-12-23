@@ -40,30 +40,31 @@ Je respire paisiblement.`,
         Allons à la rencontre de Dieu qui nous attend,<br />
         faisons un beau et lent signe de croix et disons :<br /><br />
         
-        {/* Marges et tailles optimisées pour tenir sur un écran mobile sans scroll */}
-        <span className="italic text-indigo-600 dark:text-indigo-300 block mb-1 leading-tight">
+        {/* Police plus lisible (text-base) et adaptative (md:text-lg) */}
+        <span className="italic text-indigo-600 dark:text-indigo-300 block mb-1 leading-snug text-base md:text-lg">
           « Ô Toi, qui es chez Toi dans le fond de mon cœur,<br />
           je crois que Tu es là, que Tu m’attends, dans le fond de mon cœur »
         </span>
-        <span className="text-[10px] text-stone-500 dark:text-stone-400 block mb-2">(... acte personnel de foi, d’adoration, de confiance …)</span>
+        {/* Commentaire plus lisible (text-sm) mais gris pour la discrétion */}
+        <span className="text-xs md:text-sm text-stone-500 dark:text-stone-400 block mb-2 italic">(... acte personnel de foi, d’adoration, de confiance …)</span>
 
-        <span className="italic text-indigo-600 dark:text-indigo-300 block mb-1 leading-tight">
+        <span className="italic text-indigo-600 dark:text-indigo-300 block mb-1 leading-snug text-base md:text-lg">
           « Ô Toi, qui es chez Toi dans le fond de mon cœur,<br />
           prends pitié de moi dans le fond de mon cœur »
         </span>
-        <span className="text-[10px] text-stone-500 dark:text-stone-400 block mb-2">(... un acte personnel de dépendance, de repentance …)</span>
+        <span className="text-xs md:text-sm text-stone-500 dark:text-stone-400 block mb-2 italic">(... un acte personnel de dépendance, de repentance …)</span>
 
-        <span className="italic text-indigo-600 dark:text-indigo-300 block mb-1 leading-tight">
+        <span className="italic text-indigo-600 dark:text-indigo-300 block mb-1 leading-snug text-base md:text-lg">
           « Ô Toi, qui es chez Toi dans le fond de mon cœur,<br />
           (.... acte personnel d’appel de l’Esprit-Saint …) »
         </span>
-        <span className="text-[10px] text-stone-500 dark:text-stone-400 block mb-2">(... viens Esprit Saint …)</span>
+        <span className="text-xs md:text-sm text-stone-500 dark:text-stone-400 block mb-2 italic">(... viens Esprit Saint …)</span>
 
-        <span className="italic text-indigo-600 dark:text-indigo-300 block mb-1 leading-tight">
+        <span className="italic text-indigo-600 dark:text-indigo-300 block mb-1 leading-snug text-base md:text-lg">
           « Ô Toi, qui es chez Toi dans le fond de mon cœur,<br />
           je veux ce que tu veux dans le fond de mon cœur »
         </span>
-        <span className="text-[10px] text-stone-500 dark:text-stone-400 block mb-0">(... acte personnel d’abandon à la Volonté divine …)</span>
+        <span className="text-xs md:text-sm text-stone-500 dark:text-stone-400 block mb-0 italic">(... acte personnel d’abandon à la Volonté divine …)</span>
       </>
     ),
     defaultDuration: 180 
@@ -390,7 +391,7 @@ function GuidedSession({ onExit, stepsConfig, theme }) {
   return (
     // Utilisation de fixed inset-0 pour garantir le plein écran mobile sans scroll de page
     <div className={`fixed inset-0 z-50 flex flex-col max-w-2xl mx-auto px-4 py-4 ${theme === 'dark' ? 'bg-stone-900' : 'bg-stone-50'}`}>
-      <div className="flex justify-between items-center mb-4 shrink-0">
+      <div className="flex justify-between items-center mb-2 shrink-0"> {/* mb-4 réduit à mb-2 */}
         <button onClick={onExit} className={`p-2 rounded-full ${theme === 'dark' ? 'hover:bg-stone-700' : 'hover:bg-stone-200'}`}>
           <X size={24} />
         </button>
@@ -407,7 +408,7 @@ function GuidedSession({ onExit, stepsConfig, theme }) {
         </div>
 
         {/* CONTENU CENTRAL : justify-center pour centrer verticalement le bloc texte+minuteur */}
-        <div className="flex-1 w-full px-4 overflow-y-auto custom-scrollbar flex flex-col items-center justify-center min-h-0 pt-2">
+        <div className="flex-1 w-full px-4 overflow-y-auto custom-scrollbar flex flex-col items-center justify-center min-h-0 pt-1"> {/* pt-2 réduit à pt-1 */}
           {currentStep.id === 'reading' ? (
             <div className="w-full max-w-lg mx-auto py-2 animate-fade-in-up my-auto">
               <div className={`p-4 rounded-2xl border shadow-sm ${theme === 'dark' ? 'bg-stone-900 border-stone-700' : 'bg-stone-50 border-stone-200'}`}>
@@ -423,8 +424,8 @@ function GuidedSession({ onExit, stepsConfig, theme }) {
             </div>
           ) : (
             <div className="w-full max-w-lg mx-auto mt-0">
-              {/* Optimisation pour mobile : text-xs, leading-snug */}
-              <div className={`text-xs md:text-sm whitespace-pre-wrap leading-tight animate-fade-in text-center font-serif ${theme === 'dark' ? 'text-stone-300' : 'text-stone-700'}`}>
+              {/* Optimisation pour mobile : text-base comme demandé, leading-snug */}
+              <div className={`text-base md:text-lg whitespace-pre-wrap leading-snug animate-fade-in text-center font-serif ${theme === 'dark' ? 'text-stone-300' : 'text-stone-700'}`}>
                 {currentStep.description}
               </div>
             </div>
@@ -441,7 +442,7 @@ function GuidedSession({ onExit, stepsConfig, theme }) {
           </div>
         </div>
 
-        <div className={`w-full flex justify-between p-4 pt-3 border-t shrink-0 rounded-b-2xl ${theme === 'dark' ? 'bg-stone-800 border-stone-700' : 'bg-white border-stone-100'}`}>
+        <div className={`w-full flex justify-between p-4 pt-2 border-t shrink-0 rounded-b-2xl ${theme === 'dark' ? 'bg-stone-800 border-stone-700' : 'bg-white border-stone-100'}`}> {/* pt-3 réduit à pt-2 */}
           <Button variant="ghost" onClick={prevStep} disabled={stepIndex === 0} className={stepIndex === 0 ? 'opacity-0' : ''}>
             <ChevronLeft size={20} /> Précédent
           </Button>

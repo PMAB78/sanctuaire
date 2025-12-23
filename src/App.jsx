@@ -168,7 +168,7 @@ export default function App() {
           <img 
             src="/logo.jpg" 
             alt="Logo" 
-            className={`h-64 w-auto rounded-lg shadow-md border ${theme === 'dark' ? 'border-stone-700' : 'border-stone-200'}`}
+            className={`h-48 w-auto rounded-lg shadow-md border ${theme === 'dark' ? 'border-stone-700' : 'border-stone-200'}`}
             onError={(e) => {
                e.target.style.display = 'none';
             }}

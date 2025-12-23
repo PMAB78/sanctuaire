@@ -182,7 +182,7 @@ export default function App() {
           <div className="space-y-8 animate-fade-in">
             <div className="text-center py-8">
               <h1 className={`text-3xl font-bold mb-3 ${theme === 'dark' ? 'text-indigo-300' : 'text-indigo-900'}`}>Vie d'oraison</h1>
-              <p className={theme === 'dark' ? 'text-stone-400' : 'text-stone-500'}>Jn 14,20 "En ce jour-là, vous reconnaîtrez que je suis en mon Père, que vous êtes en moi, et moi en vous."</p>
+              <p className={theme === 'dark' ? 'text-stone-400' : 'text-stone-500'}>Vive Jésus dans nos cœurs à jamais</p>
             </div>
 
             <div className="grid gap-4">

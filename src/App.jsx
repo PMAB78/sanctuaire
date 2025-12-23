@@ -37,36 +37,35 @@ Je respire paisiblement.`,
     title: 'Entrée en oraison',
     description: (
       <>
-        <span className="text-[15px] text-stone-900 dark:text-white block mb-1 leading-tight">
+        {/* Ajout de '!' pour forcer les couleurs contre le mode sombre automatique de Samsung */}
+        <span className="text-[15px] text-stone-900 dark:!text-white block mb-1 leading-tight">
         Allons à la rencontre de Dieu qui nous attend,<br />
         faisons un beau et lent signe de croix et disons :<br /><br />
         </span>
         
-        {/* CORRECTION : Utilisation de text-yellow-300 (plus vif) et activation du mode dark */}
-        
-        <span className="text-[15px] italic text-indigo-800 dark:text-yellow-300 block mb-1 leading-tight">
+        <span className="text-[15px] italic text-indigo-800 dark:!text-yellow-300 block mb-1 leading-tight">
           « Ô Toi, qui es chez Toi dans le fond de mon cœur,<br />
           je crois que Tu es là, que Tu m’attends, dans le fond de mon cœur »
         </span>
-        <span className="text-[15px] text-stone-600 dark:text-stone-300 block mb-3 opacity-80">(... acte personnel de foi, d’adoration, de confiance …)</span>
+        <span className="text-[15px] text-stone-600 dark:!text-stone-300 block mb-3 opacity-80">(... acte personnel de foi, d’adoration, de confiance …)</span>
 
-        <span className="text-[15px] italic text-indigo-800 dark:text-yellow-300 block mb-1 leading-tight">
+        <span className="text-[15px] italic text-indigo-800 dark:!text-yellow-300 block mb-1 leading-tight">
           « Ô Toi, qui es chez Toi dans le fond de mon cœur,<br />
           prends pitié de moi dans le fond de mon cœur »
         </span>
-        <span className="text-[15px] text-stone-600 dark:text-stone-300 block mb-3 opacity-80">(... un acte personnel de dépendance, de repentance …)</span>
+        <span className="text-[15px] text-stone-600 dark:!text-stone-300 block mb-3 opacity-80">(... un acte personnel de dépendance, de repentance …)</span>
 
-        <span className="text-[15px] italic text-indigo-800 dark:text-yellow-300 block mb-1 leading-tight">
+        <span className="text-[15px] italic text-indigo-800 dark:!text-yellow-300 block mb-1 leading-tight">
           « Ô Toi, qui es chez Toi dans le fond de mon cœur,<br />
           Envoie ton Esprit tout au fond de mon cœur »
         </span>
-        <span className="text-[15px] text-stone-600 dark:text-stone-300 block mb-3 opacity-80">(... acte personnel d’appel de l’Esprit-Saint …)</span>
+        <span className="text-[15px] text-stone-600 dark:!text-stone-300 block mb-3 opacity-80">(... acte personnel d’appel de l’Esprit-Saint …)</span>
 
-        <span className="text-[15px] italic text-indigo-800 dark:text-yellow-300 block mb-1 leading-tight">
+        <span className="text-[15px] italic text-indigo-800 dark:!text-yellow-300 block mb-1 leading-tight">
           « Ô Toi, qui es chez Toi dans le fond de mon cœur,<br />
           je veux ce que tu veux dans le fond de mon cœur »
         </span>
-        <span className="text-[15px] text-stone-600 dark:text-stone-300 block mb-0 opacity-80">(... acte personnel d’abandon à la Volonté divine …)</span>
+        <span className="text-[15px] text-stone-600 dark:!text-stone-300 block mb-0 opacity-80">(... acte personnel d’abandon à la Volonté divine …)</span>
       </>
     ),
     defaultDuration: 180 
@@ -124,7 +123,7 @@ const playBellsSequence = (count) => {
   for (let i = 0; i < count; i++) {
     setTimeout(() => {
       playBell();
-    }, i * 2000); // Réduit l'intervalle à 2s pour que les clochettes soient plus proches
+    }, i * 600); // Intervalle réduit à 600ms pour un tintement rapide
   }
 };
 
@@ -180,7 +179,16 @@ export default function App() {
     } catch (e) { return 'light'; }
   });
   
-  useEffect(() => { localStorage.setItem('sanctuaire_theme', JSON.stringify(theme)); }, [theme]);
+  // MISE À JOUR DE LA CLASSE SUR HTML (DocumentRoot)
+  // C'est crucial pour que les navigateurs mobiles comprennent le contexte global
+  useEffect(() => { 
+    localStorage.setItem('sanctuaire_theme', JSON.stringify(theme)); 
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [theme]);
 
   // Initialisation intelligente des étapes
   const [stepsConfig, setStepsConfig] = useState(() => {
@@ -206,7 +214,7 @@ export default function App() {
   const goHome = () => setView('home');
 
   return (
-    // CORRECTION CRITIQUE : Ajout de la classe "dark" quand le thème est sombre
+    // On garde la classe dark ici aussi pour assurer la cascade CSS locale
     <div className={`min-h-screen font-sans transition-colors duration-500 ${theme === 'dark' ? 'dark bg-stone-900 text-white' : 'bg-stone-50 text-stone-900'}`}>
       
       {/* Affichage Conditionnel : Si Guided, on prend tout l'écran, sinon on affiche Header + Main */}
@@ -370,7 +378,8 @@ function GuidedSession({ onExit, stepsConfig, theme }) {
       playBellsSequence(dongsCount);
 
       // Calcul du délai avant transition : temps de la séquence + 1 petite seconde de silence
-      const transitionDelay = (dongsCount * 2000) + 1000;
+      // Ajustement du calcul avec le nouvel intervalle de 600ms
+      const transitionDelay = (dongsCount * 600) + 1000;
 
       transitionTimeoutRef.current = setTimeout(() => {
          if (stepIndex < stepsConfig.length - 1) {
@@ -428,14 +437,13 @@ function GuidedSession({ onExit, stepsConfig, theme }) {
            <h2 className={`text-xl font-serif mt-1 ${theme === 'dark' ? 'text-white' : 'text-stone-900'}`}>{currentStep.title}</h2>
         </div>
 
-        {/* CONTENU CENTRAL : justify-start au lieu de justify-center pour éviter le clipping sur petit écran */}
-        {/* Ajout de pb-8 pour garantir que la fin du texte est accessible */}
+        {/* CONTENU CENTRAL : justify-center pour centrer verticalement le bloc texte+minuteur */}
         <div className="flex-1 w-full px-4 overflow-y-auto custom-scrollbar flex flex-col items-center justify-start min-h-0 pt-2 pb-8">
           {currentStep.id === 'reading' ? (
             <div className="w-full max-w-lg mx-auto py-2 animate-fade-in-up my-auto">
               <div className={`p-4 rounded-2xl border shadow-sm ${theme === 'dark' ? 'bg-stone-900 border-stone-700' : 'bg-stone-50 border-stone-200'}`}>
                 {/* PRIERE: Indigo foncé jour, Jaune nuit */}
-                <p className={`font-serif text-base leading-relaxed text-center font-medium ${theme === 'dark' ? 'text-yellow-300' : 'text-indigo-800'}`}>"{selectedText.content}"</p>
+                <p className={`font-serif text-base leading-relaxed text-center font-medium ${theme === 'dark' ? '!text-yellow-300' : 'text-indigo-800'}`}>"{selectedText.content}"</p>
                 {/* RESTE: Blanc nuit, Noir jour */}
                 <p className={`mt-2 text-xs font-medium text-center ${theme === 'dark' ? 'text-white' : 'text-stone-900'}`}>— {selectedText.source}</p>
               </div>

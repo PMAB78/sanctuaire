@@ -24,20 +24,33 @@ import {
 
 const DEFAULT_STEPS = [
   {
-    id: 'presence',
-    title: 'Mise en présence',
-    description: 'Prenez quelques instants pour faire silence. Fermez les yeux, calmez votre respiration. Dieu est là, présent au fond de votre cœur.',
-    duration: 120 
+    id: 'corps',
+    title: 'Prise de conscience du corps en vue de la prière',
+    description: `Je suis dans un endroit propice à la prière, retiré, silencieux.
+Mon corps est détendu, éveillé, immobile.
+Je respire paisiblement.`,
+    duration: 30 
   },
   {
-    id: 'reading',
-    title: 'Lectio (Lecture)',
-    description: 'Lisez lentement le texte proposé. Laissez un mot ou une phrase résonner en vous. Ne cherchez pas à analyser, mais à écouter.',
+    id: 'entrée',
+    title: 'Entrée en oraison',
+    // EXEMPLE DE FORMATAGE ITALIQUE ICI :
+    description: (
+      <>
+        Allons à la rencontre de Dieu qui nous attend,<br />
+        faisons un beau et lent signe de croix et disons (par exemple):<br />
+        <span className="italic text-indigo-600 dark:text-indigo-300">
+          « Ô Toi, qui es chez Toi dans le fond de mon cœur,<br />
+          je crois que Tu es là, que Tu m’attends, dans le fond de mon cœur »
+        </span><br />
+        (suivi d'un acte personnel de foi, d’adoration, de confiance, …)
+      </>
+    ),
     duration: 180 
   },
   {
-    id: 'meditation',
-    title: 'Meditatio (Cœur à cœur)',
+    id: 'rencontre', 
+    title: 'A la rencontre du Christ (Cœur à cœur)',
     description: 'C\'est le temps de l\'échange silencieux. Parlez à Dieu comme à un ami, ou restez simplement dans sa présence amoureuse.',
     duration: 600 
   },
@@ -195,7 +208,12 @@ export default function App() {
                   </div>
                   <div className="flex-1">
                     <h3 className="font-semibold text-lg">Oraison guidée</h3>
-                    <p className={`text-sm ${theme === 'dark' ? 'text-stone-400' : 'text-stone-500'}`}>Un parcours balisé : se préparer, Dieu m'attend, à la rencontre du Christ - accueillir son Amour - m'offrir - réagir, Demeurer en Dieu.</p>
+                    {/* Utilisation de <br /> pour les retours à la ligne */}
+                    <p className={`text-sm ${theme === 'dark' ? 'text-stone-400' : 'text-stone-500'}`}>
+                      Un parcours balisé : Se préparer, Dieu m'attend,<br />
+                      à la rencontre du Christ - accueillir son Amour - m'offrir - réagir,<br />
+                      Demeurer en Dieu.
+                    </p>
                   </div>
                   <ChevronRight className="text-stone-300" />
                 </div>
@@ -336,7 +354,9 @@ function GuidedSession({ onExit, stepsConfig, theme }) {
             </div>
           ) : (
             <div className="w-full max-w-lg mx-auto py-4 my-auto">
-              <p className={`text-lg leading-relaxed animate-fade-in text-center font-serif ${theme === 'dark' ? 'text-stone-300' : 'text-stone-700'}`}>{currentStep.description}</p>
+              {/* Ajout de whitespace-pre-wrap pour permettre les sauts de ligne */}
+              {/* Changement de text-lg à text-base pour réduire la taille */}
+              <p className={`text-base whitespace-pre-wrap leading-relaxed animate-fade-in text-center font-serif ${theme === 'dark' ? 'text-stone-300' : 'text-stone-700'}`}>{currentStep.description}</p>
             </div>
           )}
 

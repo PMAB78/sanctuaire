@@ -22,43 +22,62 @@ import {
 
 // --- Données et Contenu ---
 
-const DEFAULT_STEPS = [
+// Ces définitions contiennent du JSX (mise en forme) et ne doivent pas être écrasées par le LocalStorage brut.
+const STEPS_CONTENT = [
   {
     id: 'corps',
     title: 'Prise de conscience du corps en vue de la prière',
     description: `Je suis dans un endroit propice à la prière, retiré, silencieux.
 Mon corps est détendu, éveillé, immobile.
 Je respire paisiblement.`,
-    duration: 30 
+    defaultDuration: 30 
   },
   {
     id: 'entrée',
     title: 'Entrée en oraison',
-    // EXEMPLE DE FORMATAGE ITALIQUE ICI :
     description: (
       <>
         Allons à la rencontre de Dieu qui nous attend,<br />
-        faisons un beau et lent signe de croix et disons (par exemple):<br />
+        faisons un beau et lent signe de croix et disons (par exemple):<br /><br />
+        
         <span className="italic text-indigo-600 dark:text-indigo-300">
           « Ô Toi, qui es chez Toi dans le fond de mon cœur,<br />
           je crois que Tu es là, que Tu m’attends, dans le fond de mon cœur »
         </span><br />
-        (suivi d'un acte personnel de foi, d’adoration, de confiance, …)
+        <span className="text-xs text-stone-500 dark:text-stone-400 block mb-4">(... acte personnel de foi, d’adoration, de confiance …)</span>
+
+        <span className="italic text-indigo-600 dark:text-indigo-300">
+          « Ô Toi, qui es chez Toi dans le fond de mon cœur,<br />
+          prends pitié de moi dans le fond de mon cœur »
+        </span><br />
+        <span className="text-xs text-stone-500 dark:text-stone-400 block mb-4">(... un acte personnel de dépendance, de repentance …)</span>
+
+        <span className="italic text-indigo-600 dark:text-indigo-300">
+          « Ô Toi, qui es chez Toi dans le fond de mon cœur,<br />
+          (.... acte personnel d’appel de l’Esprit-Saint …) »
+        </span><br />
+        <span className="text-xs text-stone-500 dark:text-stone-400 block mb-4">(... viens Esprit Saint …)</span>
+
+        <span className="italic text-indigo-600 dark:text-indigo-300">
+          « Ô Toi, qui es chez Toi dans le fond de mon cœur,<br />
+          je veux ce que tu veux dans le fond de mon cœur »
+        </span><br />
+        <span className="text-xs text-stone-500 dark:text-stone-400 block mb-4">(... acte personnel d’abandon à la Volonté divine …)</span>
       </>
     ),
-    duration: 180 
+    defaultDuration: 180 
   },
   {
     id: 'rencontre', 
     title: 'A la rencontre du Christ (Cœur à cœur)',
     description: 'C\'est le temps de l\'échange silencieux. Parlez à Dieu comme à un ami, ou restez simplement dans sa présence amoureuse.',
-    duration: 600 
+    defaultDuration: 600 
   },
   {
     id: 'resolution',
     title: 'Conclusion & Résolution',
     description: 'Terminez par une action de grâce. Prenez une petite résolution concrète pour votre journée.',
-    duration: 180 
+    defaultDuration: 180 
   }
 ];
 
@@ -133,10 +152,31 @@ export default function App() {
   });
   useEffect(() => { localStorage.setItem('sanctuaire_theme', JSON.stringify(theme)); }, [theme]);
 
+  // Initialisation intelligente des étapes :
+  // On charge les durées depuis le stockage, mais on garde le contenu (texte/JSX) depuis le code.
   const [stepsConfig, setStepsConfig] = useState(() => {
-    try { const saved = localStorage.getItem('sanctuaire_steps'); return saved ? JSON.parse(saved) : DEFAULT_STEPS; } catch (e) { return DEFAULT_STEPS; }
+    try {
+      // On essaie de récupérer uniquement les durées sauvegardées
+      const savedDurations = JSON.parse(localStorage.getItem('sanctuaire_durations') || '{}');
+      
+      return STEPS_CONTENT.map(step => ({
+        ...step,
+        duration: savedDurations[step.id] || step.defaultDuration
+      }));
+    } catch (e) {
+      // En cas d'erreur ou de première visite, on utilise les valeurs par défaut
+      return STEPS_CONTENT.map(step => ({ ...step, duration: step.defaultDuration }));
+    }
   });
-  useEffect(() => { localStorage.setItem('sanctuaire_steps', JSON.stringify(stepsConfig)); }, [stepsConfig]);
+
+  // On sauvegarde uniquement les durées (id -> duration) pour ne pas casser le JSX au rechargement
+  useEffect(() => {
+    const durationsToSave = stepsConfig.reduce((acc, step) => {
+      acc[step.id] = step.duration;
+      return acc;
+    }, {});
+    localStorage.setItem('sanctuaire_durations', JSON.stringify(durationsToSave));
+  }, [stepsConfig]);
 
   const goHome = () => setView('home');
 
@@ -354,9 +394,8 @@ function GuidedSession({ onExit, stepsConfig, theme }) {
             </div>
           ) : (
             <div className="w-full max-w-lg mx-auto py-4 my-auto">
-              {/* Ajout de whitespace-pre-wrap pour permettre les sauts de ligne */}
-              {/* Changement de text-lg à text-base pour réduire la taille */}
-              <p className={`text-base whitespace-pre-wrap leading-relaxed animate-fade-in text-center font-serif ${theme === 'dark' ? 'text-stone-300' : 'text-stone-700'}`}>{currentStep.description}</p>
+              {/* Modification de la taille de police ici : text-sm au lieu de text-base */}
+              <p className={`text-sm whitespace-pre-wrap leading-relaxed animate-fade-in text-center font-serif ${theme === 'dark' ? 'text-stone-300' : 'text-stone-700'}`}>{currentStep.description}</p>
             </div>
           )}
 
@@ -412,7 +451,7 @@ function SettingsView({ stepsConfig, setStepsConfig, onExit, theme }) {
             <div key={step.id} className={`flex items-center justify-between pb-4 border-b last:border-0 ${theme === 'dark' ? 'border-stone-700' : 'border-stone-100'}`}>
               <div className="flex-1">
                 <div className={`font-medium ${theme === 'dark' ? 'text-stone-200' : 'text-stone-800'}`}>{step.title}</div>
-                <div className="text-xs text-stone-400 mt-1">Par défaut : {formatDurationSetting(DEFAULT_STEPS[index].duration)}</div>
+                <div className="text-xs text-stone-400 mt-1">Par défaut : {formatDurationSetting(STEPS_CONTENT[index].defaultDuration)}</div>
               </div>
               <div className="flex items-center gap-3">
                 <button onClick={() => updateDuration(index, -1)} className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${theme === 'dark' ? 'bg-stone-700 hover:bg-stone-600 text-stone-300' : 'bg-stone-100 hover:bg-stone-200 text-stone-600'}`}>

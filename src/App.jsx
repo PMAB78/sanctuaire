@@ -15,12 +15,14 @@ import {
   Sun,
   Volume2,
   VolumeX,
-  SkipForward
+  SkipForward,
+  Minus,
+  Plus
 } from 'lucide-react';
 
 // --- Données et Contenu ---
 
-const PRAYER_STEPS = [
+const DEFAULT_STEPS = [
   {
     id: 'presence',
     title: 'Mise en présence',
@@ -56,6 +58,36 @@ const TEXTS = [
   { source: "Isaïe 43, 1", content: "Ne crains rien, car je te rachète, Je t'appelle par ton nom : tu es à moi !" },
 ];
 
+// --- Fonction Sonore (Bol Tibétain simulé) ---
+
+const playBell = () => {
+  try {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContext) return;
+    
+    const ctx = new AudioContext();
+    const osc = ctx.createOscillator();
+    const gainNode = ctx.createGain();
+
+    osc.connect(gainNode);
+    gainNode.connect(ctx.destination);
+
+    // Paramètres pour un son doux type "bol chantant"
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(432, ctx.currentTime); // 432Hz fréquence apaisante
+    
+    // Enveloppe sonore (Attaque douce, déclin long)
+    gainNode.gain.setValueAtTime(0, ctx.currentTime);
+    gainNode.gain.linearRampToValueAtTime(0.3, ctx.currentTime + 0.1); // Volume max à 0.3
+    gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 3); // Déclin sur 3 secondes
+
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 3);
+  } catch (e) {
+    console.error("Impossible de jouer le son", e);
+  }
+};
+
 // --- Composants Utilitaires ---
 
 const Button = ({ children, onClick, variant = 'primary', className = '' }) => {
@@ -83,9 +115,10 @@ const Card = ({ children, className = '' }) => (
 // --- Application Principale ---
 
 export default function App() {
-  const [view, setView] = useState('home'); // home, guided, free, journal
+  const [view, setView] = useState('home'); // home, guided, free, journal, settings
   const [journalEntries, setJournalEntries] = useState([]);
-  const [theme, setTheme] = useState('light'); // light, dark (simple toggle for ambiance)
+  const [theme, setTheme] = useState('light'); // light, dark
+  const [stepsConfig, setStepsConfig] = useState(DEFAULT_STEPS); // Configuration dynamique des étapes
 
   // Navigation simple
   const goHome = () => setView('home');
@@ -101,12 +134,23 @@ export default function App() {
           </div>
           <span className="text-xl font-semibold tracking-tight">Sanctuaire</span>
         </div>
-        <button 
-          onClick={() => setTheme(prev => prev === 'light' ? 'dark' : 'light')}
-          className={`p-2 rounded-full ${theme === 'dark' ? 'hover:bg-stone-800' : 'hover:bg-stone-200'}`}
-        >
-          {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
-        </button>
+        
+        <div className="flex gap-2">
+           <button 
+            onClick={() => setView('settings')}
+            className={`p-2 rounded-full ${theme === 'dark' ? 'hover:bg-stone-800 text-stone-400' : 'hover:bg-stone-200 text-stone-600'}`}
+            title="Réglages"
+          >
+            <Settings size={20} />
+          </button>
+          <button 
+            onClick={() => setTheme(prev => prev === 'light' ? 'dark' : 'light')}
+            className={`p-2 rounded-full ${theme === 'dark' ? 'hover:bg-stone-800' : 'hover:bg-stone-200'}`}
+            title="Thème"
+          >
+            {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
+          </button>
+        </div>
       </header>
 
       {/* Main Content Area */}
@@ -166,9 +210,10 @@ export default function App() {
           </div>
         )}
 
-        {view === 'guided' && <GuidedSession onExit={goHome} theme={theme} />}
+        {view === 'guided' && <GuidedSession onExit={goHome} stepsConfig={stepsConfig} theme={theme} />}
         {view === 'free' && <FreeTimer onExit={goHome} theme={theme} />}
         {view === 'journal' && <Journal entries={journalEntries} setEntries={setJournalEntries} onExit={goHome} theme={theme} />}
+        {view === 'settings' && <SettingsView stepsConfig={stepsConfig} setStepsConfig={setStepsConfig} onExit={goHome} />}
 
       </main>
     </div>
@@ -177,17 +222,18 @@ export default function App() {
 
 // --- Sous-Composant : Session Guidée ---
 
-function GuidedSession({ onExit, theme }) {
+function GuidedSession({ onExit, stepsConfig, theme }) {
   const [stepIndex, setStepIndex] = useState(0);
-  const [timeLeft, setTimeLeft] = useState(PRAYER_STEPS[0].duration);
-  const [isActive, setIsActive] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(stepsConfig[0].duration);
+  // Initialiser à true pour lancer le premier timer automatiquement, ou false si on préfère une intro. 
+  // Ici on laisse false pour la toute première étape, mais ensuite on enchaîne.
+  const [isActive, setIsActive] = useState(false); 
   const [selectedText, setSelectedText] = useState(TEXTS[0]);
   
-  const currentStep = PRAYER_STEPS[stepIndex];
-  const isLastStep = stepIndex === PRAYER_STEPS.length - 1;
+  const currentStep = stepsConfig[stepIndex];
+  const isLastStep = stepIndex === stepsConfig.length - 1;
 
   useEffect(() => {
-    // Pick a random text on mount
     setSelectedText(TEXTS[Math.floor(Math.random() * TEXTS.length)]);
   }, []);
 
@@ -197,9 +243,10 @@ function GuidedSession({ onExit, theme }) {
       interval = setInterval(() => {
         setTimeLeft(time => time - 1);
       }, 1000);
-    } else if (timeLeft === 0) {
+    } else if (timeLeft === 0 && isActive) {
+      // Le timer vient de se terminer
       setIsActive(false);
-      // Play soft bell sound (simulated by logic here)
+      playBell();
     }
     return () => clearInterval(interval);
   }, [isActive, timeLeft]);
@@ -207,11 +254,11 @@ function GuidedSession({ onExit, theme }) {
   const toggleTimer = () => setIsActive(!isActive);
 
   const nextStep = () => {
-    if (stepIndex < PRAYER_STEPS.length - 1) {
+    if (stepIndex < stepsConfig.length - 1) {
       const nextIdx = stepIndex + 1;
       setStepIndex(nextIdx);
-      setTimeLeft(PRAYER_STEPS[nextIdx].duration);
-      setIsActive(false); // Pause auto-start for user readiness
+      setTimeLeft(stepsConfig[nextIdx].duration);
+      setIsActive(true); // AUTO-START : On lance automatiquement le timer de l'étape suivante
     } else {
       onExit();
     }
@@ -221,8 +268,8 @@ function GuidedSession({ onExit, theme }) {
     if (stepIndex > 0) {
       const prevIdx = stepIndex - 1;
       setStepIndex(prevIdx);
-      setTimeLeft(PRAYER_STEPS[prevIdx].duration);
-      setIsActive(false);
+      setTimeLeft(stepsConfig[prevIdx].duration);
+      setIsActive(false); // On met en pause si on revient en arrière
     }
   };
 
@@ -232,7 +279,7 @@ function GuidedSession({ onExit, theme }) {
     return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
   };
 
-  const progress = ((stepIndex + 1) / PRAYER_STEPS.length) * 100;
+  const progress = ((stepIndex + 1) / stepsConfig.length) * 100;
 
   return (
     <div className="flex flex-col h-[80vh]">
@@ -244,27 +291,23 @@ function GuidedSession({ onExit, theme }) {
         <div className="w-1/3 h-2 bg-stone-200 dark:bg-stone-700 rounded-full overflow-hidden">
           <div className="h-full bg-indigo-500 transition-all duration-500" style={{ width: `${progress}%` }}></div>
         </div>
-        <div className="w-8"></div> {/* Spacer for centering */}
+        <div className="w-8"></div>
       </div>
 
-      {/* Main Card - Structure ajustée pour le scroll et les boutons fixes */}
       <Card className="flex-1 flex flex-col relative overflow-hidden dark:bg-stone-800 dark:border-stone-700 !p-0">
         
-        {/* Step Indicator - Fixed Header */}
+        {/* Step Indicator */}
         <div className="pt-6 pb-2 px-6 text-center shrink-0">
-           <span className="text-xs uppercase tracking-widest font-bold text-indigo-500">Étape {stepIndex + 1}/{PRAYER_STEPS.length}</span>
+           <span className="text-xs uppercase tracking-widest font-bold text-indigo-500">Étape {stepIndex + 1}/{stepsConfig.length}</span>
            <h2 className="text-2xl font-serif mt-2 text-stone-800 dark:text-stone-100">{currentStep.title}</h2>
         </div>
 
-        {/* Content Area - Scrollable */}
-        {/* Changement ici: justify-start au lieu de justify-center pour éviter que le haut soit coupé */}
+        {/* Content Area */}
         <div className="flex-1 w-full px-6 overflow-y-auto custom-scrollbar flex flex-col items-center justify-start min-h-0 pt-4">
           
-          {/* Specific content for 'reading' step */}
           {currentStep.id === 'reading' ? (
             <div className="w-full max-w-lg mx-auto py-4 animate-fade-in-up my-auto">
               <div className="bg-stone-50 dark:bg-stone-900 p-6 rounded-2xl border border-stone-200 dark:border-stone-700 shadow-sm">
-                {/* Police réduite */}
                 <p className="font-serif text-lg leading-relaxed text-stone-900 dark:text-stone-100 text-center font-medium">
                   "{selectedText.content}"
                 </p>
@@ -280,14 +323,13 @@ function GuidedSession({ onExit, theme }) {
             </div>
           ) : (
             <div className="w-full max-w-lg mx-auto py-4 my-auto">
-              {/* Police réduite */}
               <p className="text-stone-700 dark:text-stone-300 text-lg leading-relaxed animate-fade-in text-center font-serif">
                 {currentStep.description}
               </p>
             </div>
           )}
 
-          {/* Timer Display - Minuteur + Bouton Play alignés horizontalement */}
+          {/* Timer Display */}
           <div className="py-4 flex justify-center items-center gap-4 shrink-0 mt-auto md:mt-0">
             <div className="text-4xl font-light tabular-nums tracking-tight text-indigo-900 dark:text-indigo-200 opacity-80">
               {formatTime(timeLeft)}
@@ -299,7 +341,7 @@ function GuidedSession({ onExit, theme }) {
           </div>
         </div>
 
-        {/* Navigation Buttons - Fixed Footer */}
+        {/* Navigation Buttons */}
         <div className="w-full flex justify-between p-6 pt-4 border-t border-stone-100 dark:border-stone-700 shrink-0 bg-white dark:bg-stone-800 rounded-b-2xl">
           <Button variant="ghost" onClick={prevStep} disabled={stepIndex === 0} className={stepIndex === 0 ? 'opacity-0' : ''}>
             <ChevronLeft size={20} /> Précédent
@@ -307,6 +349,67 @@ function GuidedSession({ onExit, theme }) {
           <Button variant="primary" onClick={nextStep}>
             {isLastStep ? 'Terminer' : 'Suivant'} {isLastStep ? null : <ChevronRight size={20} />}
           </Button>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+// --- Sous-Composant : Réglages ---
+
+function SettingsView({ stepsConfig, setStepsConfig, onExit }) {
+  
+  const updateDuration = (index, change) => {
+    const newSteps = [...stepsConfig];
+    const currentDuration = newSteps[index].duration;
+    // Incréments de 1 minute (60s), minimum 1 minute
+    const newDuration = Math.max(60, currentDuration + change * 60);
+    newSteps[index].duration = newDuration;
+    setStepsConfig(newSteps);
+  };
+
+  return (
+    <div className="flex flex-col h-[80vh]">
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-serif text-stone-800 dark:text-stone-100">Réglages</h2>
+        <button onClick={onExit} className="p-2 hover:bg-stone-200 dark:hover:bg-stone-700 rounded-full">
+            <X size={24} />
+        </button>
+      </div>
+
+      <Card className="flex-1 overflow-y-auto custom-scrollbar dark:bg-stone-800 dark:border-stone-700">
+        <h3 className="text-sm font-semibold text-stone-500 uppercase tracking-wide mb-6">Durée des étapes</h3>
+        <div className="space-y-6">
+          {stepsConfig.map((step, index) => (
+            <div key={step.id} className="flex items-center justify-between pb-4 border-b border-stone-100 dark:border-stone-700 last:border-0">
+              <div className="flex-1">
+                <div className="font-medium text-stone-800 dark:text-stone-200">{step.title}</div>
+                <div className="text-xs text-stone-400 mt-1">Par défaut : {DEFAULT_STEPS[index].duration / 60} min</div>
+              </div>
+              
+              <div className="flex items-center gap-3">
+                <button 
+                  onClick={() => updateDuration(index, -1)}
+                  className="w-8 h-8 rounded-full bg-stone-100 dark:bg-stone-700 hover:bg-stone-200 flex items-center justify-center text-stone-600 dark:text-stone-300 transition-colors"
+                >
+                  <Minus size={16} />
+                </button>
+                <div className="w-16 text-center font-mono text-lg font-medium text-indigo-600 dark:text-indigo-400">
+                  {Math.floor(step.duration / 60)} <span className="text-xs text-stone-400">min</span>
+                </div>
+                <button 
+                  onClick={() => updateDuration(index, 1)}
+                  className="w-8 h-8 rounded-full bg-stone-100 dark:bg-stone-700 hover:bg-stone-200 flex items-center justify-center text-stone-600 dark:text-stone-300 transition-colors"
+                >
+                  <Plus size={16} />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-8 bg-stone-50 dark:bg-stone-900 p-4 rounded-xl text-sm text-stone-500 dark:text-stone-400 border border-stone-200 dark:border-stone-700">
+           Note : Ces réglages s'appliquent à votre prochaine oraison guidée. Le minuteur se lancera automatiquement à chaque changement d'étape.
         </div>
       </Card>
     </div>
@@ -330,6 +433,7 @@ function FreeTimer({ onExit, theme }) {
     } else if (timeLeft === 0 && mode === 'running') {
       setIsActive(false);
       setMode('done');
+      playBell(); // Jouer le son aussi pour le mode libre
     }
     return () => clearInterval(interval);
   }, [isActive, timeLeft, mode]);

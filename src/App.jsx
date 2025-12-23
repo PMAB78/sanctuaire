@@ -137,7 +137,7 @@ export default function App() {
           <img 
             src="/logo.jpg" 
             alt="Logo" 
-            className={`w-10 h-10 rounded-xl object-cover shadow-sm border ${theme === 'dark' ? 'border-stone-700' : 'border-stone-200'}`}
+            className={`w-20 h-20 rounded-xl object-cover shadow-sm border ${theme === 'dark' ? 'border-stone-700' : 'border-stone-200'}`}
             onError={(e) => {
                // Fallback discret si l'image n'est pas trouvée
                e.target.style.display = 'none';

@@ -40,29 +40,30 @@ Je respire paisiblement.`,
         Allons à la rencontre de Dieu qui nous attend,<br />
         faisons un beau et lent signe de croix et disons (par exemple):<br /><br />
         
-        <span className="italic text-indigo-600 dark:text-indigo-300">
+        {/* Police réduite et marges compressées pour mobile */}
+        <span className="italic text-indigo-600 dark:text-indigo-300 block mb-1">
           « Ô Toi, qui es chez Toi dans le fond de mon cœur,<br />
           je crois que Tu es là, que Tu m’attends, dans le fond de mon cœur »
-        </span><br />
-        <span className="text-xs text-stone-500 dark:text-stone-400 block mb-4">(... acte personnel de foi, d’adoration, de confiance …)</span>
+        </span>
+        <span className="text-[10px] md:text-xs text-stone-500 dark:text-stone-400 block mb-2">(... acte personnel de foi, d’adoration, de confiance …)</span>
 
-        <span className="italic text-indigo-600 dark:text-indigo-300">
+        <span className="italic text-indigo-600 dark:text-indigo-300 block mb-1">
           « Ô Toi, qui es chez Toi dans le fond de mon cœur,<br />
           prends pitié de moi dans le fond de mon cœur »
-        </span><br />
-        <span className="text-xs text-stone-500 dark:text-stone-400 block mb-4">(... un acte personnel de dépendance, de repentance …)</span>
+        </span>
+        <span className="text-[10px] md:text-xs text-stone-500 dark:text-stone-400 block mb-2">(... un acte personnel de dépendance, de repentance …)</span>
 
-        <span className="italic text-indigo-600 dark:text-indigo-300">
+        <span className="italic text-indigo-600 dark:text-indigo-300 block mb-1">
           « Ô Toi, qui es chez Toi dans le fond de mon cœur,<br />
           (.... acte personnel d’appel de l’Esprit-Saint …) »
-        </span><br />
-        <span className="text-xs text-stone-500 dark:text-stone-400 block mb-4">(... viens Esprit Saint …)</span>
+        </span>
+        <span className="text-[10px] md:text-xs text-stone-500 dark:text-stone-400 block mb-2">(... viens Esprit Saint …)</span>
 
-        <span className="italic text-indigo-600 dark:text-indigo-300">
+        <span className="italic text-indigo-600 dark:text-indigo-300 block mb-1">
           « Ô Toi, qui es chez Toi dans le fond de mon cœur,<br />
           je veux ce que tu veux dans le fond de mon cœur »
-        </span><br />
-        <span className="text-xs text-stone-500 dark:text-stone-400 block mb-4">(... acte personnel d’abandon à la Volonté divine …)</span>
+        </span>
+        <span className="text-[10px] md:text-xs text-stone-500 dark:text-stone-400 block mb-0">(... acte personnel d’abandon à la Volonté divine …)</span>
       </>
     ),
     defaultDuration: 180 
@@ -200,7 +201,7 @@ export default function App() {
             </button>
           </div>
 
-          {/* Titre (Déplacé du Main vers le Header) */}
+          {/* Titre */}
           <div className="text-left">
               <h1 className={`text-3xl font-bold mb-1 ${theme === 'dark' ? 'text-indigo-300' : 'text-indigo-900'}`}>Vie d'oraison</h1>
               <p className={`text-sm italic ${theme === 'dark' ? 'text-stone-400' : 'text-stone-500'}`}>Vive Jésus dans nos cœurs à jamais</p>
@@ -217,12 +218,11 @@ export default function App() {
           </div>
         </div>
 
-        {/* Droite : Logo (Agrandi) */}
+        {/* Droite : Logo */}
         <div className="shrink-0">
           <img 
             src="/logo.jpg" 
             alt="Logo" 
-            // Logo agrandi (h-72)
             className={`h-72 w-auto rounded-lg shadow-md border ${theme === 'dark' ? 'border-stone-700' : 'border-stone-200'}`}
             onError={(e) => {
                e.target.style.display = 'none';
@@ -246,9 +246,7 @@ export default function App() {
                   <div className="flex-1">
                     <h3 className="font-semibold text-lg">Oraison guidée</h3>
                     <p className={`text-sm ${theme === 'dark' ? 'text-stone-400' : 'text-stone-500'}`}>
-                      Un parcours balisé : Se préparer, Dieu m'attend,<br />
-                      à la rencontre du Christ - accueillir son Amour - m'offrir - réagir,<br />
-                      Demeurer en Dieu.
+                      Un parcours balisé : préparation, entrée corps et fin de l'oraison.
                     </p>
                   </div>
                   <ChevronRight className="text-stone-300" />
@@ -390,8 +388,10 @@ function GuidedSession({ onExit, stepsConfig, theme }) {
             </div>
           ) : (
             <div className="w-full max-w-lg mx-auto py-4 my-auto">
-              {/* Modification de la taille de police ici : text-sm au lieu de text-base */}
-              <p className={`text-sm whitespace-pre-wrap leading-relaxed animate-fade-in text-center font-serif ${theme === 'dark' ? 'text-stone-300' : 'text-stone-700'}`}>{currentStep.description}</p>
+              {/* Optimisation pour mobile : text-xs, leading-normal */}
+              <div className={`text-xs md:text-sm whitespace-pre-wrap leading-normal animate-fade-in text-center font-serif ${theme === 'dark' ? 'text-stone-300' : 'text-stone-700'}`}>
+                {currentStep.description}
+              </div>
             </div>
           )}
 

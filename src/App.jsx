@@ -239,6 +239,8 @@ function GuidedSession({ onExit, stepsConfig, theme }) {
 
   useEffect(() => {
     let interval = null;
+    let transitionTimeout = null;
+
     if (isActive && timeLeft > 0) {
       interval = setInterval(() => {
         setTimeLeft(time => time - 1);
@@ -247,9 +249,25 @@ function GuidedSession({ onExit, stepsConfig, theme }) {
       // Le timer vient de se terminer
       setIsActive(false);
       playBell();
+
+      // TRANSITION AUTOMATIQUE APRÈS DÉLAI
+      transitionTimeout = setTimeout(() => {
+         if (stepIndex < stepsConfig.length - 1) {
+            const nextIdx = stepIndex + 1;
+            setStepIndex(nextIdx);
+            setTimeLeft(stepsConfig[nextIdx].duration);
+            setIsActive(true); 
+         } else {
+            onExit();
+         }
+      }, 4000); // 4 secondes de pause pour laisser résonner la cloche
     }
-    return () => clearInterval(interval);
-  }, [isActive, timeLeft]);
+    
+    return () => {
+      if (interval) clearInterval(interval);
+      if (transitionTimeout) clearTimeout(transitionTimeout);
+    };
+  }, [isActive, timeLeft, stepIndex, stepsConfig, onExit]); // Ajout des dépendances pour la transition
 
   const toggleTimer = () => setIsActive(!isActive);
 

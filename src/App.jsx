@@ -134,7 +134,7 @@ export default function App() {
       <header className="px-6 py-6 flex justify-between items-start gap-4 max-w-2xl mx-auto">
         
         {/* Gauche : Boutons + Verset */}
-        <div className="flex-1 flex flex-col items-start gap-4">
+        <div className="flex-1 flex flex-col items-start gap-2">
           
           {/* Boutons d'action déplacés à gauche */}
           <div className="flex gap-2">
@@ -157,6 +157,7 @@ export default function App() {
             <blockquote className={`font-serif text-sm italic leading-relaxed border-l-2 pl-3 ${theme === 'dark' ? 'text-stone-300 border-indigo-500' : 'text-stone-600 border-indigo-300'}`}>
               "Voici que je me tiens à la porte, et je frappe. Si quelqu’un entend ma voix et ouvre la porte, j’entrerai chez lui ; je prendrai mon repas avec lui, et lui avec moi."
             </blockquote>
+            {/* Rétablissement du mt-1 pour espacer la référence de la citation */}
             <div className={`text-xs font-bold mt-1 pl-3 ${theme === 'dark' ? 'text-indigo-400' : 'text-indigo-700'}`}>
               Ap 3,20
             </div>
@@ -180,7 +181,8 @@ export default function App() {
       <main className="max-w-2xl mx-auto px-4 pb-20 pt-4">
         {view === 'home' && (
           <div className="space-y-8 animate-fade-in">
-            <div className="text-center py-8">
+            {/* Réduction du padding-top pour rapprocher le titre du Header */}
+            <div className="text-center pb-8 pt-0">
               <h1 className={`text-3xl font-bold mb-3 ${theme === 'dark' ? 'text-indigo-300' : 'text-indigo-900'}`}>Vie d'oraison</h1>
               <p className={theme === 'dark' ? 'text-stone-400' : 'text-stone-500'}>Vive Jésus dans nos cœurs à jamais</p>
             </div>

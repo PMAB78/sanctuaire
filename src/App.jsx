@@ -30,9 +30,15 @@ const STEPS_CONTENT = [
   {
     id: 'corps',
     title: 'Prise de conscience du corps en vue de la prière',
-    description: `Je suis dans un endroit propice à la prière, retiré, silencieux.
-Mon corps est détendu, éveillé, immobile.
-Je respire paisiblement.`,
+    description: ( 
+      <>
+        <span className="text-xs italic text-indigo-800 dark:!text-yellow-300 block mb-1 leading-tight">
+          <br /> <br /> Je suis dans un endroit propice à la prière, retiré, silencieux. <br /> <br />
+          Mon corps est détendu, éveillé, immobile. <br /> <br />
+          Je respire paisiblement. <br /> <br />
+        </span>
+     </>
+    ),
     defaultDuration: 30 
   },
   {
@@ -196,7 +202,7 @@ const useWakeLock = () => {
       try {
         wakeLockRef.current = await navigator.wakeLock.request('screen');
       } catch (err) {
-        console.error(`${err.name}, ${err.message}`);
+        // Silently ignore errors if wake lock is not allowed
       }
     }
   };
@@ -207,7 +213,7 @@ const useWakeLock = () => {
         await wakeLockRef.current.release();
         wakeLockRef.current = null;
       } catch (err) {
-        console.error(`${err.name}, ${err.message}`);
+         // Silently ignore errors
       }
     }
   };
@@ -341,37 +347,7 @@ export default function App() {
       ) : (
         <>
           <header className="px-6 py-6 flex justify-between items-start gap-6 max-w-2xl mx-auto">
-            
-            {/* Gauche : Texte (Titre + Citation) - Boutons déplacés */}
             <div className="flex-1 flex flex-col items-start gap-4">
-              
-              <div className="text-left">
-                  <h1 className={`text-3xl font-bold mb-1 ${theme === 'dark' ? 'text-indigo-300' : 'text-indigo-900'}`}>Benedictus</h1>
-                  <p className={`text-sm italic ${theme === 'dark' ? 'text-stone-300' : 'text-stone-600'}`}>Vive Jésus dans nos cœurs !</p>
-              </div>
-
-              <div className="cursor-pointer" onClick={goHome}>
-                <blockquote className={`font-serif text-sm italic leading-relaxed border-l-2 pl-3 ${theme === 'dark' ? 'text-stone-200 border-indigo-500' : 'text-stone-800 border-indigo-300'}`}>
-                  "Voici que je me tiens à la porte, et je frappe. Si quelqu’un entend ma voix et ouvre la porte, j’entrerai chez lui ; je prendrai mon repas avec lui, et lui avec moi."
-                </blockquote>
-                <div className={`text-xs font-bold mt-1 pl-3 ${theme === 'dark' ? 'text-indigo-300' : 'text-indigo-800'}`}>
-                  Ap 3,20
-                </div>
-              </div>
-            </div>
-
-            {/* Droite : Logo Grand Format + Boutons en dessous */}
-            <div className="shrink-0 flex flex-col items-center gap-4">
-              <img 
-                src="/logo.jpg" 
-                alt="Logo" 
-                className={`h-72 w-auto rounded-lg shadow-md border ${theme === 'dark' ? 'border-stone-700' : 'border-stone-200'}`}
-                onError={(e) => {
-                   e.target.style.display = 'none';
-                }}
-              />
-              
-              {/* Boutons d'action placés ici */}
               <div className="flex gap-2">
                  <button 
                   onClick={() => setView('settings')}
@@ -386,8 +362,30 @@ export default function App() {
                   {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
                 </button>
               </div>
+              <div className="text-left">
+                  <h1 className={`text-3xl font-bold mb-1 ${theme === 'dark' ? 'text-indigo-300' : 'text-indigo-900'}`}>Benedictus</h1>
+                  <p className={`text-sm italic ${theme === 'dark' ? 'text-stone-300' : 'text-stone-600'}`}>Vive Jésus dans nos cœurs !</p>
+              </div>
+              <div className="cursor-pointer" onClick={goHome}>
+                <blockquote className={`font-serif text-sm italic leading-relaxed border-l-2 pl-3 ${theme === 'dark' ? 'text-stone-200 border-indigo-500' : 'text-stone-800 border-indigo-300'}`}>
+                  "Voici que je me tiens à la porte, et je frappe. Si quelqu’un entend ma voix et ouvre la porte, j’entrerai chez lui ; je prendrai mon repas avec lui, et lui avec moi."
+                </blockquote>
+                <div className={`text-xs font-bold mt-1 pl-3 ${theme === 'dark' ? 'text-indigo-300' : 'text-indigo-800'}`}>
+                  Ap 3,20
+                </div>
+              </div>
             </div>
-            
+
+            <div className="shrink-0">
+              <img 
+                src="/logo.jpg" 
+                alt="Logo" 
+                className={`h-72 w-auto rounded-lg shadow-md border ${theme === 'dark' ? 'border-stone-700' : 'border-stone-200'}`}
+                onError={(e) => {
+                   e.target.style.display = 'none';
+                }}
+              />
+            </div>
           </header>
 
           <main className="max-w-2xl mx-auto px-4 pb-20 pt-4">

@@ -17,7 +17,10 @@ import {
   VolumeX,
   SkipForward,
   Minus,
-  Plus
+  Plus,
+  Bell,
+  Music,
+  Timer
 } from 'lucide-react';
 
 // --- Données et Contenu ---
@@ -130,7 +133,7 @@ const TEXTS = [
 ];
 
 // --- Fonction Sonore ---
-const playBell = () => {
+const playBell = (type = 'clochette') => {
   try {
     const AudioContext = window.AudioContext || window.webkitAudioContext;
     if (!AudioContext) return;
@@ -140,30 +143,51 @@ const playBell = () => {
     osc.connect(gainNode);
     gainNode.connect(ctx.destination);
     
-    // Modification pour un son de "clochette"
-    osc.type = 'sine'; // Onde sinusoïdale pure
-    osc.frequency.setValueAtTime(2000, ctx.currentTime); // Fréquence haute (2000Hz) pour le côté "cristallin"
+    let frequency = 2000;
+    let duration = 0.7;
+    let waveType = 'sine';
+
+    switch (type) {
+        case 'cloche':
+            frequency = 550; 
+            duration = 2.5; 
+            waveType = 'sine';
+            break;
+        case 'gong':
+            frequency = 140; 
+            duration = 4.0; 
+            waveType = 'triangle'; 
+            break;
+        case 'clochette':
+        default:
+            frequency = 2000; 
+            duration = 0.7; 
+            waveType = 'sine';
+            break;
+    }
     
-    // Enveloppe sonore plus courte et percutante
+    osc.type = waveType;
+    osc.frequency.setValueAtTime(frequency, ctx.currentTime);
+    
     gainNode.gain.setValueAtTime(0, ctx.currentTime);
-    gainNode.gain.linearRampToValueAtTime(0.1, ctx.currentTime + 0.05); // Attaque très rapide
-    gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.7); // Déclin très rapide (0.7s)
+    gainNode.gain.linearRampToValueAtTime(type === 'gong' ? 0.3 : 0.1, ctx.currentTime + 0.05);
+    gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration); 
     
     osc.start(ctx.currentTime);
-    osc.stop(ctx.currentTime + 0.7);
+    osc.stop(ctx.currentTime + duration);
   } catch (e) { console.error("Erreur son", e); }
 };
 
 // Fonction helper pour jouer plusieurs fois
-const playBellsSequence = (count) => {
+const playBellsSequence = (count, interval, type = 'clochette') => {
   for (let i = 0; i < count; i++) {
     setTimeout(() => {
-      playBell();
-    }, i * 600); // Intervalle réduit à 600ms pour un tintement rapide
+      playBell(type);
+    }, i * interval);
   }
 };
 
-// --- Hook pour Wake Lock (Garder l'écran allumé) ---
+// --- Hook pour Wake Lock ---
 const useWakeLock = () => {
   const wakeLockRef = useRef(null);
 
@@ -189,7 +213,6 @@ const useWakeLock = () => {
   };
 
   useEffect(() => {
-    // Re-demander le wake lock si la visibilité change (ex: retour après veille)
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
         requestWakeLock();
@@ -258,8 +281,25 @@ export default function App() {
     } catch (e) { return 'light'; }
   });
   
+  const [soundType, setSoundType] = useState(() => {
+      try { 
+          const saved = localStorage.getItem('sanctuaire_sound_type'); 
+          return saved ? JSON.parse(saved) : 'clochette'; 
+      } catch (e) { return 'clochette'; }
+  });
+
+  // NOUVEAU STATE : Intervalle entre les sonneries (en ms)
+  const [bellInterval, setBellInterval] = useState(() => {
+      try { 
+          const saved = localStorage.getItem('sanctuaire_bell_interval'); 
+          return saved ? JSON.parse(saved) : 1000; 
+      } catch (e) { return 1000; }
+  });
+
+  useEffect(() => { localStorage.setItem('sanctuaire_sound_type', JSON.stringify(soundType)); }, [soundType]);
+  useEffect(() => { localStorage.setItem('sanctuaire_bell_interval', JSON.stringify(bellInterval)); }, [bellInterval]);
+
   // MISE À JOUR DE LA CLASSE SUR HTML (DocumentRoot)
-  // C'est crucial pour que les navigateurs mobiles comprennent le contexte global
   useEffect(() => { 
     localStorage.setItem('sanctuaire_theme', JSON.stringify(theme)); 
     if (theme === 'dark') {
@@ -293,49 +333,15 @@ export default function App() {
   const goHome = () => setView('home');
 
   return (
-    // On garde la classe dark ici aussi pour assurer la cascade CSS locale
     <div className={`min-h-screen font-sans transition-colors duration-500 ${theme === 'dark' ? 'dark bg-stone-900 text-white' : 'bg-stone-50 text-stone-900'}`}>
       
-      {/* Affichage Conditionnel : Si Guided, on prend tout l'écran, sinon on affiche Header + Main */}
+      {/* Affichage Conditionnel */}
       {view === 'guided' ? (
-        <GuidedSession onExit={goHome} stepsConfig={stepsConfig} theme={theme} />
+        <GuidedSession onExit={goHome} stepsConfig={stepsConfig} theme={theme} soundType={soundType} bellInterval={bellInterval} />
       ) : (
         <>
-          {/* Header */}
           <header className="px-6 py-6 flex justify-between items-start gap-6 max-w-2xl mx-auto">
-            
-            {/* Gauche : Texte (Titre + Citation) - Boutons retirés ici */}
             <div className="flex-1 flex flex-col items-start gap-4">
-              
-              {/* Titre */}
-              <div className="text-left">
-                  <h1 className={`text-3xl font-bold mb-1 ${theme === 'dark' ? 'text-indigo-300' : 'text-indigo-900'}`}>Vie d'oraison</h1>
-                  <p className={`text-sm italic ${theme === 'dark' ? 'text-stone-300' : 'text-stone-600'}`}>Vive Jésus dans nos cœurs à jamais</p>
-              </div>
-
-              {/* Citation */}
-              <div className="cursor-pointer" onClick={goHome}>
-                <blockquote className={`font-serif text-sm italic leading-relaxed border-l-2 pl-3 ${theme === 'dark' ? 'text-stone-200 border-indigo-500' : 'text-stone-800 border-indigo-300'}`}>
-                  "Voici que je me tiens à la porte, et je frappe. Si quelqu’un entend ma voix et ouvre la porte, j’entrerai chez lui ; je prendrai mon repas avec lui, et lui avec moi."
-                </blockquote>
-                <div className={`text-xs font-bold mt-1 pl-3 ${theme === 'dark' ? 'text-indigo-300' : 'text-indigo-800'}`}>
-                  Ap 3,20
-                </div>
-              </div>
-            </div>
-
-            {/* Droite : Logo Grand Format + Boutons en dessous */}
-            <div className="shrink-0 flex flex-col items-center gap-4">
-              <img 
-                src="/logo.jpg" 
-                alt="Logo" 
-                className={`h-72 w-auto rounded-lg shadow-md border ${theme === 'dark' ? 'border-stone-700' : 'border-stone-200'}`}
-                onError={(e) => {
-                   e.target.style.display = 'none';
-                }}
-              />
-
-              {/* Boutons d'action déplacés ici */}
               <div className="flex gap-2">
                  <button 
                   onClick={() => setView('settings')}
@@ -350,15 +356,36 @@ export default function App() {
                   {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
                 </button>
               </div>
+              <div className="text-left">
+                  {/* MODIFICATION DU TITRE ICI */}
+                  <h1 className={`text-3xl font-bold mb-1 ${theme === 'dark' ? 'text-indigo-300' : 'text-indigo-900'}`}>Benedictus</h1>
+                  <p className={`text-sm italic ${theme === 'dark' ? 'text-stone-300' : 'text-stone-600'}`}>Vive Jésus dans nos cœurs !</p>
+              </div>
+              <div className="cursor-pointer" onClick={goHome}>
+                <blockquote className={`font-serif text-sm italic leading-relaxed border-l-2 pl-3 ${theme === 'dark' ? 'text-stone-200 border-indigo-500' : 'text-stone-800 border-indigo-300'}`}>
+                  "Voici que je me tiens à la porte, et je frappe. Si quelqu’un entend ma voix et ouvre la porte, j’entrerai chez lui ; je prendrai mon repas avec lui, et lui avec moi."
+                </blockquote>
+                <div className={`text-xs font-bold mt-1 pl-3 ${theme === 'dark' ? 'text-indigo-300' : 'text-indigo-800'}`}>
+                  Ap 3,20
+                </div>
+              </div>
             </div>
-            
+
+            <div className="shrink-0">
+              <img 
+                src="/logo.jpg" 
+                alt="Logo" 
+                className={`h-72 w-auto rounded-lg shadow-md border ${theme === 'dark' ? 'border-stone-700' : 'border-stone-200'}`}
+                onError={(e) => {
+                   e.target.style.display = 'none';
+                }}
+              />
+            </div>
           </header>
 
-          {/* Main Content */}
           <main className="max-w-2xl mx-auto px-4 pb-20 pt-4">
             {view === 'home' && (
               <div className="space-y-8 animate-fade-in mt-4">
-                
                 <div className="grid gap-4">
                   <Card theme={theme} className="cursor-pointer hover:border-indigo-300 transition-colors group" >
                     <div onClick={() => setView('guided')} className="flex items-center gap-4">
@@ -395,7 +422,7 @@ export default function App() {
                       </div>
                       <div className="flex-1">
                         <h3 className="font-semibold text-lg">Carnet Spirituel</h3>
-                        <p className={`text-sm ${theme === 'dark' ? 'text-stone-300' : 'text-stone-600'}`}>Notez vos grâces, résolutions et pensées.</p>
+                        <p className={`text-sm ${theme === 'dark' ? 'text-stone-300' : 'text-stone-600'}`}>Notez la Parole de Dieu, la pensée qui vous touche, la résolution pour la journée...</p>
                       </div>
                       <ChevronRight className="text-stone-300" />
                     </div>
@@ -408,10 +435,9 @@ export default function App() {
               </div>
             )}
 
-            {view === 'free' && <FreeTimer onExit={goHome} theme={theme} />}
+            {view === 'free' && <FreeTimer onExit={goHome} theme={theme} soundType={soundType} />}
             {view === 'journal' && <Journal entries={journalEntries} setEntries={setJournalEntries} onExit={goHome} theme={theme} />}
-            {view === 'settings' && <SettingsView stepsConfig={stepsConfig} setStepsConfig={setStepsConfig} onExit={goHome} theme={theme} />}
-
+            {view === 'settings' && <SettingsView stepsConfig={stepsConfig} setStepsConfig={setStepsConfig} onExit={goHome} theme={theme} soundType={soundType} setSoundType={setSoundType} bellInterval={bellInterval} setBellInterval={setBellInterval} />}
           </main>
         </>
       )}
@@ -421,43 +447,36 @@ export default function App() {
 
 // --- Sous-Composants ---
 
-function GuidedSession({ onExit, stepsConfig, theme }) {
+function GuidedSession({ onExit, stepsConfig, theme, soundType, bellInterval }) {
   const [stepIndex, setStepIndex] = useState(0);
   const [timeLeft, setTimeLeft] = useState(stepsConfig[0].duration);
-  // MODIFICATION: Activé par défaut pour démarrage immédiat
   const [isActive, setIsActive] = useState(true); 
   const [selectedText, setSelectedText] = useState(TEXTS[0]);
   const transitionTimeoutRef = useRef(null);
-  
-  // NOUVEAU: Référence pour stocker l'heure de fin cible (plus précis que setInterval)
   const endTimeRef = useRef(null);
   const { requestWakeLock, releaseWakeLock } = useWakeLock();
 
   const currentStep = stepsConfig[stepIndex];
   const isLastStep = stepIndex === stepsConfig.length - 1;
+  const progress = ((stepIndex + 1) / stepsConfig.length) * 100;
 
   useEffect(() => { setSelectedText(TEXTS[Math.floor(Math.random() * TEXTS.length)]); }, []);
   useEffect(() => { return () => { if (transitionTimeoutRef.current) clearTimeout(transitionTimeoutRef.current); }; }, [stepIndex]);
 
-  // MODIFICATION: Dong d'ouverture + WakeLock
   useEffect(() => {
-    playBell(); 
+    playBell(soundType); 
     requestWakeLock();
     return () => releaseWakeLock();
   }, []);
 
-  // INITIALISATION DU TEMPS CIBLE QUAND ON ACTIVE LE TIMER
   useEffect(() => {
     if (isActive && !endTimeRef.current) {
-        // Si on active et qu'on n'a pas de cible, on la calcule : Maintenant + temps restant
         endTimeRef.current = Date.now() + timeLeft * 1000;
     } else if (!isActive) {
-        // Si on met en pause, on reset la cible (on gardera juste timeLeft figé)
         endTimeRef.current = null;
     }
-  }, [isActive]); // On ne dépend PAS de timeLeft ici pour ne pas recalculer à chaque seconde
+  }, [isActive]);
 
-  // BOUCLE DE MINUTEUR ROBUSTE
   useEffect(() => {
     let interval = null;
     if (isActive) {
@@ -467,25 +486,21 @@ function GuidedSession({ onExit, stepsConfig, theme }) {
              const remaining = Math.ceil((endTimeRef.current - now) / 1000);
              
              if (remaining <= 0) {
-                 // FIN DU TIMER
                  setTimeLeft(0);
                  setIsActive(false);
-                 endTimeRef.current = null; // Reset
+                 endTimeRef.current = null;
                  
-                 // Logique des dongs
-                 playBell();
+                 playBell(soundType);
                  
-                  // MODIFICATION: Logique des dongs selon l'étape
                   let dongsCount = 0;
-                  if (stepIndex === 0) dongsCount = 2; // Fin étape 1 (Corps)
-                  else if (stepIndex === 1) dongsCount = 3; // Fin étape 2 (Entrée)
-                  else if (stepIndex === 2) dongsCount = 2; // Fin étape 3 (Rencontre)
-                  else if (stepIndex === 3) dongsCount = 1; // Fin étape 4 (Résolution)
+                  if (stepIndex === 0) dongsCount = 2;
+                  else if (stepIndex === 1) dongsCount = 3;
+                  else if (stepIndex === 2) dongsCount = 2;
+                  else if (stepIndex === 3) dongsCount = 1;
 
-                  playBellsSequence(dongsCount);
+                  playBellsSequence(dongsCount, bellInterval, soundType);
 
-                  // Calcul du délai avant transition
-                  const transitionDelay = (dongsCount * 600) + 1000;
+                  const transitionDelay = (dongsCount * bellInterval) + 1000;
 
                  transitionTimeoutRef.current = setTimeout(() => {
                     if (stepIndex < stepsConfig.length - 1) {
@@ -493,11 +508,9 @@ function GuidedSession({ onExit, stepsConfig, theme }) {
                         setStepIndex(nextIdx);
                         const nextDuration = stepsConfig[nextIdx].duration;
                         setTimeLeft(nextDuration);
-                        // On relance pour la prochaine étape
-                        endTimeRef.current = Date.now() + nextDuration * 1000 + transitionDelay; // On ajoute le délai à la cible pour être précis ? Non, on reset juste isActive
+                        endTimeRef.current = Date.now() + nextDuration * 1000 + transitionDelay; 
                         setIsActive(true); 
-                        // Note: Le useEffect [isActive] va recalculer endTimeRef.current proprement
-                        endTimeRef.current = null; // Force le recalcul
+                        endTimeRef.current = null;
                     } else { onExit(); }
                  }, transitionDelay);
 
@@ -505,30 +518,27 @@ function GuidedSession({ onExit, stepsConfig, theme }) {
                  setTimeLeft(remaining);
              }
         }
-      }, 200); // Check plus fréquent (5 fois par seconde) pour fluidité
+      }, 200);
     }
     return () => clearInterval(interval);
-  }, [isActive, stepIndex, stepsConfig, onExit]);
-
+  }, [isActive, stepIndex, stepsConfig, onExit, soundType, bellInterval]);
 
   const toggleTimer = () => setIsActive(!isActive);
   const nextStep = () => {
     if (stepIndex < stepsConfig.length - 1) {
       const nextIdx = stepIndex + 1;
       setStepIndex(nextIdx);
-      const nextD = stepsConfig[nextIdx].duration;
-      setTimeLeft(nextD);
+      setTimeLeft(stepsConfig[nextIdx].duration);
       setIsActive(true);
-      endTimeRef.current = null; // Force recalcul
+      endTimeRef.current = null;
     } else { onExit(); }
   };
   const prevStep = () => {
     if (stepIndex > 0) {
       const prevIdx = stepIndex - 1;
       setStepIndex(prevIdx);
-      const prevD = stepsConfig[prevIdx].duration;
-      setTimeLeft(prevD);
-      setIsActive(false); // Pause quand on recule
+      setTimeLeft(stepsConfig[prevIdx].duration);
+      setIsActive(false);
       endTimeRef.current = null;
     }
   };
@@ -537,13 +547,10 @@ function GuidedSession({ onExit, stepsConfig, theme }) {
     const secs = seconds % 60;
     return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
   };
-  const progress = ((stepIndex + 1) / stepsConfig.length) * 100;
 
   return (
-    // Utilisation de fixed inset-0 pour garantir le plein écran mobile sans scroll de page
-    // CORRECTION : Ajout de la classe "dark" ici aussi pour garantir le style des enfants
     <div className={`fixed inset-0 z-50 flex flex-col max-w-2xl mx-auto px-4 py-4 ${theme === 'dark' ? 'dark bg-stone-900 text-white' : 'bg-stone-50 text-stone-900'}`}>
-      <div className="flex justify-between items-center mb-2 shrink-0"> {/* mb-4 réduit à mb-2 */}
+      <div className="flex justify-between items-center mb-2 shrink-0"> 
         <button onClick={onExit} className={`p-2 rounded-full ${theme === 'dark' ? 'hover:bg-stone-700' : 'hover:bg-stone-200'}`}>
           <X size={24} />
         </button>
@@ -559,14 +566,11 @@ function GuidedSession({ onExit, stepsConfig, theme }) {
            <h2 className={`text-xl font-serif mt-1 ${theme === 'dark' ? 'text-white' : 'text-stone-900'}`}>{currentStep.title}</h2>
         </div>
 
-        {/* CONTENU CENTRAL : justify-center pour centrer verticalement le bloc texte+minuteur */}
-        <div className="flex-1 w-full px-4 overflow-y-auto custom-scrollbar flex flex-col items-center justify-center min-h-0 pt-1"> {/* pt-2 réduit à pt-1 */}
+        <div className="flex-1 w-full px-4 overflow-y-auto custom-scrollbar flex flex-col items-center justify-start min-h-0 pt-2 pb-8">
           {currentStep.id === 'reading' ? (
             <div className="w-full max-w-lg mx-auto py-2 animate-fade-in-up my-auto">
               <div className={`p-4 rounded-2xl border shadow-sm ${theme === 'dark' ? 'bg-stone-900 border-stone-700' : 'bg-stone-50 border-stone-200'}`}>
-                {/* PRIERE: Indigo foncé jour, Jaune nuit */}
                 <p className={`font-serif text-sm leading-relaxed text-center font-medium ${theme === 'dark' ? '!text-yellow-300' : 'text-indigo-800'}`}>"{selectedText.content}"</p>
-                {/* RESTE: Blanc nuit, Noir jour */}
                 <p className={`mt-2 text-xs font-medium text-center ${theme === 'dark' ? 'text-white' : 'text-stone-900'}`}>— {selectedText.source}</p>
               </div>
               <button 
@@ -577,16 +581,13 @@ function GuidedSession({ onExit, stepsConfig, theme }) {
               </button>
             </div>
           ) : (
-            // Utilisation de my-auto pour centrer verticalement SI il y a de la place, sinon scroll normal
-            <div className="w-full max-w-lg mx-auto my-auto pt-2">
-              {/* Optimisation pour mobile : text-base comme demandé, leading-snug */}
+            <div className="w-full max-w-lg mx-auto mt-0">
               <div className={`text-xs whitespace-pre-wrap leading-snug animate-fade-in text-center font-serif ${theme === 'dark' ? 'text-white' : 'text-stone-900'}`}>
                 {currentStep.description}
               </div>
             </div>
           )}
 
-          {/* Minuteur collé au texte (mt-4) */}
           <div className="py-0 flex justify-center items-center gap-4 shrink-0 mt-4 mb-2">
             <div className={`text-3xl md:text-4xl font-light tabular-nums tracking-tight opacity-80 ${theme === 'dark' ? 'text-indigo-200' : 'text-indigo-900'}`}>
               {formatTime(timeLeft)}
@@ -597,7 +598,7 @@ function GuidedSession({ onExit, stepsConfig, theme }) {
           </div>
         </div>
 
-        <div className={`w-full flex justify-between p-4 pt-2 border-t shrink-0 rounded-b-2xl ${theme === 'dark' ? 'bg-stone-800 border-stone-700' : 'bg-white border-stone-100'}`}> {/* pt-3 réduit à pt-2 */}
+        <div className={`w-full flex justify-between p-4 pt-2 border-t shrink-0 rounded-b-2xl ${theme === 'dark' ? 'bg-stone-800 border-stone-700' : 'bg-white border-stone-100'}`}>
           <Button variant="ghost" onClick={prevStep} disabled={stepIndex === 0} className={stepIndex === 0 ? 'opacity-0' : ''}>
             <ChevronLeft size={20} /> Précédent
           </Button>
@@ -610,7 +611,7 @@ function GuidedSession({ onExit, stepsConfig, theme }) {
   );
 }
 
-function SettingsView({ stepsConfig, setStepsConfig, onExit, theme }) {
+function SettingsView({ stepsConfig, setStepsConfig, onExit, theme, soundType, setSoundType, bellInterval, setBellInterval }) {
   const updateDuration = (index, change) => {
     const newSteps = [...stepsConfig];
     const newDuration = Math.max(10, newSteps[index].duration + change * 10);
@@ -633,6 +634,62 @@ function SettingsView({ stepsConfig, setStepsConfig, onExit, theme }) {
       </div>
 
       <Card theme={theme} className="flex-1 overflow-y-auto custom-scrollbar">
+        
+        {/* SECTION SONNERIE */}
+        <div className="mb-8">
+            <h3 className="text-sm font-semibold text-stone-500 uppercase tracking-wide mb-4">Sonnerie</h3>
+            <div className="grid grid-cols-3 gap-3 mb-6">
+                {['clochette', 'cloche', 'gong'].map((type) => (
+                    <button
+                        key={type}
+                        onClick={() => { 
+                            setSoundType(type); 
+                            playBell(type);
+                            // Ajustement auto de l'intervalle recommandé
+                            if(type === 'clochette') setBellInterval(1000);
+                            if(type === 'cloche') setBellInterval(2000);
+                            if(type === 'gong') setBellInterval(3500);
+                        }}
+                        className={`py-3 px-2 rounded-xl text-sm font-medium transition-all border-2 flex flex-col items-center gap-2
+                            ${soundType === type 
+                                ? 'border-indigo-600 bg-indigo-50 text-indigo-700 dark:bg-indigo-900 dark:border-indigo-400 dark:text-indigo-100' 
+                                : 'border-transparent bg-stone-100 text-stone-600 dark:bg-stone-700 dark:text-stone-300 hover:bg-stone-200 dark:hover:bg-stone-600'
+                            }`}
+                    >
+                        {type === 'clochette' && <Bell size={18} />}
+                        {type === 'cloche' && <Volume2 size={18} />}
+                        {type === 'gong' && <Music size={18} />}
+                        <span className="capitalize">{type}</span>
+                    </button>
+                ))}
+            </div>
+
+             {/* SECTION INTERVALLE */}
+             <div className="flex items-center justify-between pb-4 border-b border-stone-100 dark:border-stone-700">
+                <div className="flex-1">
+                    <div className={`font-medium ${theme === 'dark' ? 'text-white' : 'text-stone-900'}`}>Intervalle</div>
+                    <div className="text-xs text-stone-400 mt-1">Entre les sonneries</div>
+                </div>
+                <div className="flex items-center gap-3">
+                    <button 
+                        onClick={() => setBellInterval(prev => Math.max(100, prev - 100))}
+                        className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${theme === 'dark' ? 'bg-stone-700 hover:bg-stone-600 text-stone-300' : 'bg-stone-100 hover:bg-stone-200 text-stone-600'}`}
+                    >
+                        <Minus size={16} />
+                    </button>
+                    <div className={`w-20 text-center font-mono text-lg font-medium ${theme === 'dark' ? 'text-indigo-400' : 'text-indigo-600'}`}>
+                        {(bellInterval / 1000).toFixed(1)}s
+                    </div>
+                    <button 
+                        onClick={() => setBellInterval(prev => Math.min(5000, prev + 100))}
+                        className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${theme === 'dark' ? 'bg-stone-700 hover:bg-stone-600 text-stone-300' : 'bg-stone-100 hover:bg-stone-200 text-stone-600'}`}
+                    >
+                        <Plus size={16} />
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <h3 className="text-sm font-semibold text-stone-500 uppercase tracking-wide mb-6">Durée des étapes</h3>
         <div className="space-y-6">
           {stepsConfig.map((step, index) => (
@@ -663,7 +720,7 @@ function SettingsView({ stepsConfig, setStepsConfig, onExit, theme }) {
   );
 }
 
-function FreeTimer({ onExit, theme }) {
+function FreeTimer({ onExit, theme, soundType }) {
   const [duration, setDuration] = useState(15);
   const [timeLeft, setTimeLeft] = useState(15 * 60);
   const [isActive, setIsActive] = useState(false);
@@ -697,7 +754,7 @@ function FreeTimer({ onExit, theme }) {
                  setTimeLeft(0);
                  setIsActive(false);
                  setMode('done');
-                 playBell();
+                 playBell(soundType);
              } else {
                  setTimeLeft(remaining);
              }
@@ -705,8 +762,7 @@ function FreeTimer({ onExit, theme }) {
       }, 200);
     }
     return () => clearInterval(interval);
-  }, [isActive]);
-
+  }, [isActive, soundType]);
 
   const startTimer = () => { setTimeLeft(duration * 60); setMode('running'); setIsActive(true); };
   const resetTimer = () => { setIsActive(false); setMode('setup'); };

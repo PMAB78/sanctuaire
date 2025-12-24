@@ -132,7 +132,7 @@ const TEXTS = [
   { source: "Saint Augustin", content: "Tu nous as faits pour toi, Seigneur, et notre cœur est sans repos tant qu'il ne demeure en toi." },
   { source: "Matthieu 11, 28", content: "Venez à moi, vous tous qui êtes fatigués et chargés, et je vous donnerai du repos." },
   { source: "Sainte Thérèse d'Avila", content: "L'oraison n'est à mon avis qu'un commerce intime d'amitié où l'on s'entretient souvent seul à seul avec ce Dieu dont on se sait aimé." },
-  { source: "Isaïe 43, 1", content: "Ne crains rien, car je te rachète, Je t'appelle par ton nom : tu es à moi !" },
+  { source: "Isaïe 43,1", content: "Ne crains rien, car je te rachète, Je t'appelle par ton nom : tu es à moi !" },
 ];
 
 // --- Fonction Sonore ---

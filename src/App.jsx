@@ -46,8 +46,6 @@ const STEPS_CONTENT = [
     title: 'Entrée en oraison',
     description: (
       <>
-        {/* Ajout de '!' pour forcer les couleurs contre le mode sombre automatique de Samsung */}
-        {/* Utilisation de text-xs partout pour uniformiser et gagner de la place */}
         <span className="text-xs text-stone-900 dark:!text-white block mb-1 leading-tight">
         Allons à la rencontre de Dieu qui nous attend,<br />
         faisons un beau et lent signe de croix et disons :<br /><br />
@@ -266,21 +264,16 @@ const Card = ({ children, className = '', theme }) => {
 export default function App() {
   const [view, setView] = useState('home'); 
   
-  // MISE A JOUR DU TITRE DE L'ONGLET
-  useEffect(() => {
-    document.title = "Benedictus";
-  }, []);
-  
-  // Persistance (LocalStorage avec nouvelles clés 'benedictus_')
+  // Persistance (LocalStorage)
   const [journalEntries, setJournalEntries] = useState(() => {
-    try { const saved = localStorage.getItem('benedictus_journal'); return saved ? JSON.parse(saved) : []; } catch (e) { return []; }
+    try { const saved = localStorage.getItem('sanctuaire_journal'); return saved ? JSON.parse(saved) : []; } catch (e) { return []; }
   });
-  useEffect(() => { localStorage.setItem('benedictus_journal', JSON.stringify(journalEntries)); }, [journalEntries]);
+  useEffect(() => { localStorage.setItem('sanctuaire_journal', JSON.stringify(journalEntries)); }, [journalEntries]);
 
   // INITIALISATION DU THÈME AVEC DÉTECTION DU SYSTÈME
   const [theme, setTheme] = useState(() => {
     try { 
-      const saved = localStorage.getItem('benedictus_theme'); 
+      const saved = localStorage.getItem('sanctuaire_theme'); 
       if (saved) {
         return JSON.parse(saved);
       }
@@ -294,7 +287,7 @@ export default function App() {
   
   const [soundType, setSoundType] = useState(() => {
       try { 
-          const saved = localStorage.getItem('benedictus_sound_type'); 
+          const saved = localStorage.getItem('sanctuaire_sound_type'); 
           return saved ? JSON.parse(saved) : 'clochette'; 
       } catch (e) { return 'clochette'; }
   });
@@ -302,17 +295,17 @@ export default function App() {
   // NOUVEAU STATE : Intervalle entre les sonneries (en ms)
   const [bellInterval, setBellInterval] = useState(() => {
       try { 
-          const saved = localStorage.getItem('benedictus_bell_interval'); 
+          const saved = localStorage.getItem('sanctuaire_bell_interval'); 
           return saved ? JSON.parse(saved) : 1000; 
       } catch (e) { return 1000; }
   });
 
-  useEffect(() => { localStorage.setItem('benedictus_sound_type', JSON.stringify(soundType)); }, [soundType]);
-  useEffect(() => { localStorage.setItem('benedictus_bell_interval', JSON.stringify(bellInterval)); }, [bellInterval]);
+  useEffect(() => { localStorage.setItem('sanctuaire_sound_type', JSON.stringify(soundType)); }, [soundType]);
+  useEffect(() => { localStorage.setItem('sanctuaire_bell_interval', JSON.stringify(bellInterval)); }, [bellInterval]);
 
   // MISE À JOUR DE LA CLASSE SUR HTML (DocumentRoot)
   useEffect(() => { 
-    localStorage.setItem('benedictus_theme', JSON.stringify(theme)); 
+    localStorage.setItem('sanctuaire_theme', JSON.stringify(theme)); 
     if (theme === 'dark') {
       document.documentElement.classList.add('dark');
     } else {
@@ -323,7 +316,7 @@ export default function App() {
   // Initialisation intelligente des étapes
   const [stepsConfig, setStepsConfig] = useState(() => {
     try {
-      const savedDurations = JSON.parse(localStorage.getItem('benedictus_durations') || '{}');
+      const savedDurations = JSON.parse(localStorage.getItem('sanctuaire_durations') || '{}');
       return STEPS_CONTENT.map(step => ({
         ...step,
         duration: savedDurations[step.id] || step.defaultDuration
@@ -338,7 +331,7 @@ export default function App() {
       acc[step.id] = step.duration;
       return acc;
     }, {});
-    localStorage.setItem('benedictus_durations', JSON.stringify(durationsToSave));
+    localStorage.setItem('sanctuaire_durations', JSON.stringify(durationsToSave));
   }, [stepsConfig]);
 
   const goHome = () => setView('home');
@@ -472,6 +465,8 @@ function GuidedSession({ onExit, stepsConfig, theme, soundType, bellInterval }) 
 
   const currentStep = stepsConfig[stepIndex];
   const isLastStep = stepIndex === stepsConfig.length - 1;
+  // CORRECTION: Ajout du calcul de progress qui avait été oublié
+  const progress = ((stepIndex + 1) / stepsConfig.length) * 100;
 
   useEffect(() => { setSelectedText(TEXTS[Math.floor(Math.random() * TEXTS.length)]); }, []);
   useEffect(() => { return () => { if (transitionTimeoutRef.current) clearTimeout(transitionTimeoutRef.current); }; }, [stepIndex]);

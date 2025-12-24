@@ -25,6 +25,7 @@ import {
 
 // --- Données et Contenu ---
 
+// Ces définitions contiennent du JSX (mise en forme) et ne doivent pas être écrasées par le LocalStorage brut.
 const STEPS_CONTENT = [
   {
     id: 'corps',
@@ -45,6 +46,8 @@ const STEPS_CONTENT = [
     title: 'Entrée en oraison',
     description: (
       <>
+        {/* Ajout de '!' pour forcer les couleurs contre le mode sombre automatique de Samsung */}
+        {/* Utilisation de text-xs partout pour uniformiser et gagner de la place */}
         <span className="text-xs text-stone-900 dark:!text-white block mb-1 leading-tight">
         Allons à la rencontre de Dieu qui nous attend,<br />
         faisons un beau et lent signe de croix et disons :<br /><br />
@@ -135,25 +138,105 @@ const TEXTS = [
   { source: "Isaïe 43, 1", content: "Ne crains rien, car je te rachète, Je t'appelle par ton nom : tu es à moi !" },
 ];
 
-// --- Fonction Sonore (LECTURE DE FICHIERS WAV) ---
-const playBell = (type = 'clochette') => {
-  try {
-    const audioPath = `/${type}.wav`;
-    const audio = new Audio(audioPath);
-    audio.volume = 1.0; 
+// --- GESTION AUDIO (WAV avec Fallback Synthétiseur) ---
+
+let audioCtx = null;
+const audioBuffers = {};
+
+const initAudioContext = () => {
+  // Gestion de la compatibilité navigateur
+  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextClass) return null;
+
+  if (!audioCtx) {
+    audioCtx = new AudioContextClass();
+  }
+  if (audioCtx.state === 'suspended') {
+    audioCtx.resume();
+  }
+  return audioCtx;
+};
+
+// Fallback : Synthétiseur si le fichier WAV ne marche pas
+const playSynthBell = (type) => {
+    const ctx = initAudioContext();
+    if (!ctx) return;
+
+    const osc = ctx.createOscillator();
+    const gainNode = ctx.createGain();
+    osc.connect(gainNode);
+    gainNode.connect(ctx.destination);
     
-    const playPromise = audio.play();
-    if (playPromise !== undefined) {
-      playPromise.catch(error => {
-        console.warn(`Erreur lecture ${audioPath}.`, error);
-      });
+    let frequency = 2000;
+    let duration = 0.7;
+    let waveType = 'sine';
+
+    switch (type) {
+        case 'cloche':
+            frequency = 550; duration = 2.5; waveType = 'sine'; break;
+        case 'gong':
+            frequency = 140; duration = 4.0; waveType = 'triangle'; break;
+        case 'clochette':
+        default:
+            frequency = 2000; duration = 0.7; waveType = 'sine'; break;
     }
-  } catch (e) { 
-    console.error("Erreur système audio", e); 
+    
+    osc.type = waveType;
+    osc.frequency.setValueAtTime(frequency, ctx.currentTime);
+    
+    gainNode.gain.setValueAtTime(0, ctx.currentTime);
+    gainNode.gain.linearRampToValueAtTime(type === 'gong' ? 0.3 : 0.1, ctx.currentTime + 0.05);
+    gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration); 
+    
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + duration);
+};
+
+const loadSound = async (filename) => {
+  if (audioBuffers[filename]) return audioBuffers[filename];
+  try {
+    const response = await fetch(filename);
+    if (!response.ok) throw new Error("Fichier non trouvé");
+    const arrayBuffer = await response.arrayBuffer();
+    const ctx = initAudioContext();
+    if (!ctx) return null;
+    const decodedAudio = await ctx.decodeAudioData(arrayBuffer);
+    audioBuffers[filename] = decodedAudio;
+    return decodedAudio;
+  } catch (error) {
+    // Silencieux pour ne pas spammer la console si pas de fichier
+    // console.warn(`Fichier audio ${filename} non chargé, utilisation du synthé.`);
+    return null;
   }
 };
 
-// Fonction helper pour jouer plusieurs fois
+const preloadSounds = () => {
+  ['/clochette.wav', '/cloche.wav', '/gong.wav'].forEach(loadSound);
+};
+
+const playBell = async (type = 'clochette') => {
+  try {
+    const ctx = initAudioContext();
+    if (!ctx) return;
+
+    // Essayer de charger/jouer le fichier WAV
+    const buffer = await loadSound(`/${type}.wav`);
+    
+    if (buffer) {
+      const source = ctx.createBufferSource();
+      source.buffer = buffer;
+      source.connect(ctx.destination);
+      source.start(0);
+    } else {
+      // Si pas de fichier, jouer le son synthétisé
+      playSynthBell(type);
+    }
+  } catch (e) {
+    // Fallback ultime
+    playSynthBell(type);
+  }
+};
+
 const playBellsSequence = (count, interval, type = 'clochette') => {
   for (let i = 0; i < count; i++) {
     setTimeout(() => {
@@ -170,7 +253,9 @@ const useWakeLock = () => {
     if ('wakeLock' in navigator) {
       try {
         wakeLockRef.current = await navigator.wakeLock.request('screen');
-      } catch (err) {}
+      } catch (err) {
+        // Silently ignore errors
+      }
     }
   };
 
@@ -179,7 +264,9 @@ const useWakeLock = () => {
       try {
         await wakeLockRef.current.release();
         wakeLockRef.current = null;
-      } catch (err) {}
+      } catch (err) {
+         // Silently ignore errors
+      }
     }
   };
 
@@ -230,12 +317,13 @@ const Card = ({ children, className = '', theme }) => {
 export default function App() {
   const [view, setView] = useState('home'); 
   
-  // Persistance
+  // Persistance (LocalStorage)
   const [journalEntries, setJournalEntries] = useState(() => {
     try { const saved = localStorage.getItem('sanctuaire_journal'); return saved ? JSON.parse(saved) : []; } catch (e) { return []; }
   });
   useEffect(() => { localStorage.setItem('sanctuaire_journal', JSON.stringify(journalEntries)); }, [journalEntries]);
 
+  // INITIALISATION DU THÈME
   const [theme, setTheme] = useState(() => {
     try { 
       const saved = localStorage.getItem('sanctuaire_theme'); 
@@ -246,11 +334,17 @@ export default function App() {
   });
   
   const [soundType, setSoundType] = useState(() => {
-      try { const saved = localStorage.getItem('sanctuaire_sound_type'); return saved ? JSON.parse(saved) : 'clochette'; } catch (e) { return 'clochette'; }
+      try { 
+          const saved = localStorage.getItem('sanctuaire_sound_type'); 
+          return saved ? JSON.parse(saved) : 'clochette'; 
+      } catch (e) { return 'clochette'; }
   });
 
   const [bellInterval, setBellInterval] = useState(() => {
-      try { const saved = localStorage.getItem('sanctuaire_bell_interval'); return saved ? JSON.parse(saved) : 1000; } catch (e) { return 1000; }
+      try { 
+          const saved = localStorage.getItem('sanctuaire_bell_interval'); 
+          return saved ? JSON.parse(saved) : 1000; 
+      } catch (e) { return 1000; }
   });
 
   useEffect(() => { localStorage.setItem('sanctuaire_sound_type', JSON.stringify(soundType)); }, [soundType]);
@@ -258,9 +352,17 @@ export default function App() {
 
   useEffect(() => { 
     localStorage.setItem('sanctuaire_theme', JSON.stringify(theme)); 
-    if (theme === 'dark') document.documentElement.classList.add('dark');
-    else document.documentElement.classList.remove('dark');
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
   }, [theme]);
+
+  // Chargement des sons au démarrage
+  useEffect(() => {
+    preloadSounds();
+  }, []);
 
   const [stepsConfig, setStepsConfig] = useState(() => {
     try {
@@ -275,7 +377,10 @@ export default function App() {
   });
 
   useEffect(() => {
-    const durationsToSave = stepsConfig.reduce((acc, step) => { acc[step.id] = step.duration; return acc; }, {});
+    const durationsToSave = stepsConfig.reduce((acc, step) => {
+      acc[step.id] = step.duration;
+      return acc;
+    }, {});
     localStorage.setItem('sanctuaire_durations', JSON.stringify(durationsToSave));
   }, [stepsConfig]);
 
@@ -305,12 +410,31 @@ export default function App() {
             </div>
 
             <div className="shrink-0 flex flex-col items-center gap-4">
-              <img src="/logo.jpg" alt="Logo" className={`h-72 w-auto rounded-lg shadow-md border ${theme === 'dark' ? 'border-stone-700' : 'border-stone-200'}`} onError={(e) => { e.target.style.display = 'none'; }} />
+              <img 
+                src="/logo.jpg" 
+                alt="Logo" 
+                className={`h-72 w-auto rounded-lg shadow-md border ${theme === 'dark' ? 'border-stone-700' : 'border-stone-200'}`}
+                onError={(e) => {
+                   e.target.style.display = 'none';
+                }}
+              />
+              
               <div className="flex gap-2">
-                 <button onClick={() => setView('settings')} className={`p-2 rounded-full ${theme === 'dark' ? 'hover:bg-stone-800 text-stone-400' : 'hover:bg-stone-200 text-stone-600'}`}><Settings size={20} /></button>
-                <button onClick={() => setTheme(prev => prev === 'light' ? 'dark' : 'light')} className={`p-2 rounded-full ${theme === 'dark' ? 'hover:bg-stone-800' : 'hover:bg-stone-200'}`}>{theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}</button>
+                 <button 
+                  onClick={() => setView('settings')}
+                  className={`p-2 rounded-full ${theme === 'dark' ? 'hover:bg-stone-800 text-stone-400' : 'hover:bg-stone-200 text-stone-600'}`}
+                >
+                  <Settings size={20} />
+                </button>
+                <button 
+                  onClick={() => setTheme(prev => prev === 'light' ? 'dark' : 'light')}
+                  className={`p-2 rounded-full ${theme === 'dark' ? 'hover:bg-stone-800' : 'hover:bg-stone-200'}`}
+                >
+                  {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
+                </button>
               </div>
             </div>
+            
           </header>
 
           <main className="max-w-2xl mx-auto px-4 pb-20 pt-4">
@@ -319,10 +443,14 @@ export default function App() {
                 <div className="grid gap-4">
                   <Card theme={theme} className="cursor-pointer hover:border-indigo-300 transition-colors group" >
                     <div onClick={() => setView('guided')} className="flex items-center gap-4">
-                      <div className={`p-3 rounded-full transition-transform group-hover:scale-110 ${theme === 'dark' ? 'bg-indigo-900 text-indigo-300' : 'bg-indigo-100 text-indigo-600'}`}><BookOpen size={24} /></div>
+                      <div className={`p-3 rounded-full transition-transform group-hover:scale-110 ${theme === 'dark' ? 'bg-indigo-900 text-indigo-300' : 'bg-indigo-100 text-indigo-600'}`}>
+                        <BookOpen size={24} />
+                      </div>
                       <div className="flex-1">
                         <h3 className="font-semibold text-lg">Oraison guidée</h3>
-                        <p className={`text-sm ${theme === 'dark' ? 'text-stone-300' : 'text-stone-600'}`}>Un parcours balisé : préparation, entrée corps et fin de l'oraison.</p>
+                        <p className={`text-sm ${theme === 'dark' ? 'text-stone-300' : 'text-stone-600'}`}>
+                          Un parcours balisé : préparation, entrée corps et fin de l'oraison.
+                        </p>
                       </div>
                       <ChevronRight className="text-stone-300" />
                     </div>
@@ -330,7 +458,9 @@ export default function App() {
 
                   <Card theme={theme} className="cursor-pointer hover:border-indigo-300 transition-colors group">
                     <div onClick={() => setView('journal')} className="flex items-center gap-4">
-                      <div className={`p-3 rounded-full transition-transform group-hover:scale-110 ${theme === 'dark' ? 'bg-amber-900 text-amber-300' : 'bg-amber-100 text-amber-600'}`}><PenTool size={24} /></div>
+                      <div className={`p-3 rounded-full transition-transform group-hover:scale-110 ${theme === 'dark' ? 'bg-amber-900 text-amber-300' : 'bg-amber-100 text-amber-600'}`}>
+                        <PenTool size={24} />
+                      </div>
                       <div className="flex-1">
                         <h3 className="font-semibold text-lg">Carnet Spirituel</h3>
                         <p className={`text-sm ${theme === 'dark' ? 'text-stone-300' : 'text-stone-600'}`}>Notez la Parole de Dieu, la pensée qui vous touche, la résolution pour la journée...</p>
@@ -339,12 +469,13 @@ export default function App() {
                     </div>
                   </Card>
                 </div>
+
                 <div className={`mt-8 p-6 rounded-2xl text-center italic border ${theme === 'dark' ? 'bg-stone-800 text-white border-stone-700' : 'bg-stone-100 text-stone-800 border-stone-200'}`}>
                   "{TEXTS[Math.floor(Math.random() * TEXTS.length)].content}"
                 </div>
               </div>
             )}
-            
+
             {view === 'journal' && <Journal entries={journalEntries} setEntries={setJournalEntries} onExit={goHome} theme={theme} />}
             {view === 'settings' && <SettingsView stepsConfig={stepsConfig} setStepsConfig={setStepsConfig} onExit={goHome} theme={theme} soundType={soundType} setSoundType={setSoundType} bellInterval={bellInterval} setBellInterval={setBellInterval} />}
           </main>
@@ -399,7 +530,8 @@ function GuidedSession({ onExit, stepsConfig, theme, soundType, bellInterval }) 
                  setIsActive(false);
                  endTimeRef.current = null;
                  
-                 // CORRECTION MAJEURE ICI : La séquence de cloches est restaurée
+                 // Suppression du double playBell() ici pour éviter l'écho
+                 
                   let dongsCount = 0;
                   if (stepIndex === 0) dongsCount = 2;
                   else if (stepIndex === 1) dongsCount = 3;
@@ -553,7 +685,6 @@ function SettingsView({ stepsConfig, setStepsConfig, onExit, theme, soundType, s
                         onClick={() => { 
                             setSoundType(type); 
                             playBell(type);
-                            // Ajustement auto de l'intervalle recommandé
                             if(type === 'clochette') setBellInterval(1000);
                             if(type === 'cloche') setBellInterval(2000);
                             if(type === 'gong') setBellInterval(3500);

@@ -25,7 +25,6 @@ import {
 
 // --- Données et Contenu ---
 
-// Ces définitions contiennent du JSX (mise en forme) et ne doivent pas être écrasées par le LocalStorage brut.
 const STEPS_CONTENT = [
   {
     id: 'corps',
@@ -141,13 +140,12 @@ const playBell = (type = 'clochette') => {
   try {
     const audioPath = `/${type}.wav`;
     const audio = new Audio(audioPath);
-    audio.volume = 1.0; // S'assurer que le volume est à fond
+    audio.volume = 1.0; 
     
-    // Tentative de lecture avec gestion d'erreur améliorée
     const playPromise = audio.play();
     if (playPromise !== undefined) {
       playPromise.catch(error => {
-        console.warn(`Erreur lecture ${audioPath}. Interaction requise ou fichier manquant.`, error);
+        console.warn(`Erreur lecture ${audioPath}.`, error);
       });
     }
   } catch (e) { 
@@ -167,24 +165,37 @@ const playBellsSequence = (count, interval, type = 'clochette') => {
 // --- Hook pour Wake Lock ---
 const useWakeLock = () => {
   const wakeLockRef = useRef(null);
+
   const requestWakeLock = async () => {
     if ('wakeLock' in navigator) {
-      try { wakeLockRef.current = await navigator.wakeLock.request('screen'); } catch (err) {}
+      try {
+        wakeLockRef.current = await navigator.wakeLock.request('screen');
+      } catch (err) {}
     }
   };
+
   const releaseWakeLock = async () => {
     if (wakeLockRef.current) {
-      try { await wakeLockRef.current.release(); wakeLockRef.current = null; } catch (err) {}
+      try {
+        await wakeLockRef.current.release();
+        wakeLockRef.current = null;
+      } catch (err) {}
     }
   };
+
   useEffect(() => {
-    const handleVisibilityChange = () => { if (document.visibilityState === 'visible') requestWakeLock(); };
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        requestWakeLock();
+      }
+    };
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       releaseWakeLock();
     };
   }, []);
+
   return { requestWakeLock, releaseWakeLock };
 };
 
@@ -219,13 +230,12 @@ const Card = ({ children, className = '', theme }) => {
 export default function App() {
   const [view, setView] = useState('home'); 
   
-  // Persistance (LocalStorage)
+  // Persistance
   const [journalEntries, setJournalEntries] = useState(() => {
     try { const saved = localStorage.getItem('sanctuaire_journal'); return saved ? JSON.parse(saved) : []; } catch (e) { return []; }
   });
   useEffect(() => { localStorage.setItem('sanctuaire_journal', JSON.stringify(journalEntries)); }, [journalEntries]);
 
-  // INITIALISATION DU THÈME
   const [theme, setTheme] = useState(() => {
     try { 
       const saved = localStorage.getItem('sanctuaire_theme'); 
@@ -255,7 +265,10 @@ export default function App() {
   const [stepsConfig, setStepsConfig] = useState(() => {
     try {
       const savedDurations = JSON.parse(localStorage.getItem('sanctuaire_durations') || '{}');
-      return STEPS_CONTENT.map(step => ({ ...step, duration: savedDurations[step.id] || step.defaultDuration }));
+      return STEPS_CONTENT.map(step => ({
+        ...step,
+        duration: savedDurations[step.id] || step.defaultDuration
+      }));
     } catch (e) {
       return STEPS_CONTENT.map(step => ({ ...step, duration: step.defaultDuration }));
     }
@@ -314,8 +327,6 @@ export default function App() {
                       <ChevronRight className="text-stone-300" />
                     </div>
                   </Card>
-                  
-                  {/* Suppression du bouton Minuteur Libre */}
 
                   <Card theme={theme} className="cursor-pointer hover:border-indigo-300 transition-colors group">
                     <div onClick={() => setView('journal')} className="flex items-center gap-4">
@@ -334,7 +345,6 @@ export default function App() {
               </div>
             )}
             
-            {/* Suppression du composant FreeTimer */}
             {view === 'journal' && <Journal entries={journalEntries} setEntries={setJournalEntries} onExit={goHome} theme={theme} />}
             {view === 'settings' && <SettingsView stepsConfig={stepsConfig} setStepsConfig={setStepsConfig} onExit={goHome} theme={theme} soundType={soundType} setSoundType={setSoundType} bellInterval={bellInterval} setBellInterval={setBellInterval} />}
           </main>
@@ -389,8 +399,7 @@ function GuidedSession({ onExit, stepsConfig, theme, soundType, bellInterval }) 
                  setIsActive(false);
                  endTimeRef.current = null;
                  
-                 // CORRECTION: Suppression du playBell(soundType) redondant ici
-                 
+                 // CORRECTION MAJEURE ICI : La séquence de cloches est restaurée
                   let dongsCount = 0;
                   if (stepIndex === 0) dongsCount = 2;
                   else if (stepIndex === 1) dongsCount = 3;

@@ -304,25 +304,9 @@ export default function App() {
           {/* Header */}
           <header className="px-6 py-6 flex justify-between items-start gap-6 max-w-2xl mx-auto">
             
-            {/* Gauche : Texte (Boutons + Titre + Citation) */}
+            {/* Gauche : Texte (Titre + Citation) - Boutons retirés ici */}
             <div className="flex-1 flex flex-col items-start gap-4">
               
-              {/* Boutons d'action */}
-              <div className="flex gap-2">
-                 <button 
-                  onClick={() => setView('settings')}
-                  className={`p-2 rounded-full ${theme === 'dark' ? 'hover:bg-stone-800 text-stone-400' : 'hover:bg-stone-200 text-stone-600'}`}
-                >
-                  <Settings size={20} />
-                </button>
-                <button 
-                  onClick={() => setTheme(prev => prev === 'light' ? 'dark' : 'light')}
-                  className={`p-2 rounded-full ${theme === 'dark' ? 'hover:bg-stone-800' : 'hover:bg-stone-200'}`}
-                >
-                  {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
-                </button>
-              </div>
-
               {/* Titre */}
               <div className="text-left">
                   <h1 className={`text-3xl font-bold mb-1 ${theme === 'dark' ? 'text-indigo-300' : 'text-indigo-900'}`}>Vie d'oraison</h1>
@@ -340,8 +324,8 @@ export default function App() {
               </div>
             </div>
 
-            {/* Droite : Logo Grand Format */}
-            <div className="shrink-0">
+            {/* Droite : Logo Grand Format + Boutons en dessous */}
+            <div className="shrink-0 flex flex-col items-center gap-4">
               <img 
                 src="/logo.jpg" 
                 alt="Logo" 
@@ -350,6 +334,22 @@ export default function App() {
                    e.target.style.display = 'none';
                 }}
               />
+
+              {/* Boutons d'action déplacés ici */}
+              <div className="flex gap-2">
+                 <button 
+                  onClick={() => setView('settings')}
+                  className={`p-2 rounded-full ${theme === 'dark' ? 'hover:bg-stone-800 text-stone-400' : 'hover:bg-stone-200 text-stone-600'}`}
+                >
+                  <Settings size={20} />
+                </button>
+                <button 
+                  onClick={() => setTheme(prev => prev === 'light' ? 'dark' : 'light')}
+                  className={`p-2 rounded-full ${theme === 'dark' ? 'hover:bg-stone-800' : 'hover:bg-stone-200'}`}
+                >
+                  {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
+                </button>
+              </div>
             </div>
             
           </header>

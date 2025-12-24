@@ -46,6 +46,8 @@ const STEPS_CONTENT = [
     title: 'Entrée en oraison',
     description: (
       <>
+        {/* Ajout de '!' pour forcer les couleurs contre le mode sombre automatique de Samsung */}
+        {/* Utilisation de text-xs partout pour uniformiser et gagner de la place */}
         <span className="text-xs text-stone-900 dark:!text-white block mb-1 leading-tight">
         Allons à la rencontre de Dieu qui nous attend,<br />
         faisons un beau et lent signe de croix et disons :<br /><br />
@@ -108,7 +110,7 @@ const STEPS_CONTENT = [
         </span>
       </>
     ),
-    defaultDuration: 540 
+    defaultDuration: 600 
   },
   {
     id: 'resolution',
@@ -136,85 +138,71 @@ const TEXTS = [
   { source: "Isaïe 43, 1", content: "Ne crains rien, car je te rachète, Je t'appelle par ton nom : tu es à moi !" },
 ];
 
-// --- Moteur Audio Robuste (Web Audio API) ---
-
-// On garde une référence globale pour l'AudioContext pour éviter qu'il soit nettoyé
-let audioContext = null;
-const audioBuffers = {}; // Cache pour les sons chargés
-
-// Initialisation du contexte (doit être appelé sur une interaction utilisateur)
-const initAudioEngine = () => {
-  if (!audioContext) {
+// --- Fonction Sonore (Synthétiseur de secours) ---
+const playSynthBell = (type) => {
     const AudioContext = window.AudioContext || window.webkitAudioContext;
-    if (AudioContext) {
-      audioContext = new AudioContext();
+    if (!AudioContext) return;
+    const ctx = new AudioContext();
+    const osc = ctx.createOscillator();
+    const gainNode = ctx.createGain();
+    
+    osc.connect(gainNode);
+    gainNode.connect(ctx.destination);
+
+    let frequency = 2000;
+    let duration = 0.7;
+    let waveType = 'sine';
+
+    switch (type) {
+        case 'cloche':
+            frequency = 550; duration = 2.5; waveType = 'sine'; break;
+        case 'gong':
+            frequency = 140; duration = 4.0; waveType = 'triangle'; break;
+        case 'clochette':
+        default:
+            frequency = 2000; duration = 0.7; waveType = 'sine'; break;
     }
-  }
-  if (audioContext && audioContext.state === 'suspended') {
-    audioContext.resume();
-  }
-  return audioContext;
+    
+    osc.type = waveType;
+    osc.frequency.setValueAtTime(frequency, ctx.currentTime);
+    
+    gainNode.gain.setValueAtTime(0, ctx.currentTime);
+    gainNode.gain.linearRampToValueAtTime(type === 'gong' ? 0.3 : 0.1, ctx.currentTime + 0.05);
+    gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration); 
+    
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + duration);
 };
 
-// Chargement des fichiers sons en mémoire (Buffer)
-const loadSound = async (url) => {
-  if (audioBuffers[url]) return audioBuffers[url]; // Déjà chargé
-
+// --- Fonction Sonore Principale (WAV + Fallback) ---
+const playBell = (type = 'clochette') => {
   try {
-    const ctx = initAudioEngine();
-    if (!ctx) return null;
-
-    const response = await fetch(url);
-    const arrayBuffer = await response.arrayBuffer();
-    const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
-    audioBuffers[url] = audioBuffer;
-    return audioBuffer;
-  } catch (error) {
-    console.error("Erreur chargement son:", url, error);
-    return null;
+    const audioPath = `/${type}.wav`;
+    const audio = new Audio(audioPath);
+    audio.volume = 1.0; 
+    
+    const playPromise = audio.play();
+    if (playPromise !== undefined) {
+      playPromise.catch(error => {
+        // En cas d'erreur (fichier manquant, format non supporté, etc.), on joue le synthé
+        // console.warn("Utilisation du son synthétique de secours", error);
+        playSynthBell(type);
+      });
+    }
+  } catch (e) { 
+    // Fallback ultime
+    playSynthBell(type);
   }
 };
 
-// Préchargement de tous les sons au démarrage
-const preloadAllSounds = () => {
-  ['/clochette.wav', '/cloche.wav', '/gong.wav'].forEach(loadSound);
-};
-
-// Lecture d'un son (fiable même sur mobile si context déverrouillé)
-const playSoundEffect = (type = 'clochette') => {
-  const ctx = initAudioEngine();
-  if (!ctx) return;
-
-  const url = `/${type}.wav`;
-  const buffer = audioBuffers[url];
-
-  if (buffer) {
-    // Lecture depuis la mémoire (très rapide et fiable)
-    const source = ctx.createBufferSource();
-    source.buffer = buffer;
-    source.connect(ctx.destination);
-    source.start(0);
-  } else {
-    // Tentative de chargement à la volée si pas en cache
-    loadSound(url).then((loadedBuffer) => {
-      if (loadedBuffer) {
-        const source = ctx.createBufferSource();
-        source.buffer = loadedBuffer;
-        source.connect(ctx.destination);
-        source.start(0);
-      }
-    });
-  }
-};
-
+// Fonction helper pour jouer plusieurs fois
 const playBellsSequence = (count, interval, type = 'clochette') => {
   for (let i = 0; i < count; i++) {
     setTimeout(() => {
-      playSoundEffect(type);
+      playBell(type);
     }, i * interval);
   }
 };
-
 
 // --- Hook pour Wake Lock ---
 const useWakeLock = () => {
@@ -225,7 +213,7 @@ const useWakeLock = () => {
       try {
         wakeLockRef.current = await navigator.wakeLock.request('screen');
       } catch (err) {
-        // Silently ignore errors
+        // Silently ignore errors if wake lock is not allowed
       }
     }
   };
@@ -295,13 +283,14 @@ export default function App() {
   });
   useEffect(() => { localStorage.setItem('sanctuaire_journal', JSON.stringify(journalEntries)); }, [journalEntries]);
 
-  // INITIALISATION DU THÈME
+  // INITIALISATION DU THÈME AVEC DÉTECTION DU SYSTÈME
   const [theme, setTheme] = useState(() => {
     try { 
       const saved = localStorage.getItem('sanctuaire_theme'); 
       if (saved) {
         return JSON.parse(saved);
       }
+      // Si aucune préférence sauvegardée, on regarde le système
       if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
         return 'dark';
       }
@@ -316,6 +305,7 @@ export default function App() {
       } catch (e) { return 'clochette'; }
   });
 
+  // NOUVEAU STATE : Intervalle entre les sonneries (en ms)
   const [bellInterval, setBellInterval] = useState(() => {
       try { 
           const saved = localStorage.getItem('sanctuaire_bell_interval'); 
@@ -326,6 +316,7 @@ export default function App() {
   useEffect(() => { localStorage.setItem('sanctuaire_sound_type', JSON.stringify(soundType)); }, [soundType]);
   useEffect(() => { localStorage.setItem('sanctuaire_bell_interval', JSON.stringify(bellInterval)); }, [bellInterval]);
 
+  // MISE À JOUR DE LA CLASSE SUR HTML (DocumentRoot)
   useEffect(() => { 
     localStorage.setItem('sanctuaire_theme', JSON.stringify(theme)); 
     if (theme === 'dark') {
@@ -335,26 +326,7 @@ export default function App() {
     }
   }, [theme]);
 
-  // Initialisation et Préchargement Audio
-  useEffect(() => {
-    // Précharger les sons dès que possible
-    preloadAllSounds();
-    
-    // Essayer d'initialiser le contexte sur un premier geste (même scroll ou touch)
-    const unlock = () => {
-        initAudioEngine();
-        document.removeEventListener('click', unlock);
-        document.removeEventListener('touchstart', unlock);
-    };
-    document.addEventListener('click', unlock);
-    document.addEventListener('touchstart', unlock);
-    
-    return () => {
-        document.removeEventListener('click', unlock);
-        document.removeEventListener('touchstart', unlock);
-    };
-  }, []);
-
+  // Initialisation intelligente des étapes
   const [stepsConfig, setStepsConfig] = useState(() => {
     try {
       const savedDurations = JSON.parse(localStorage.getItem('sanctuaire_durations') || '{}');
@@ -376,12 +348,6 @@ export default function App() {
   }, [stepsConfig]);
 
   const goHome = () => setView('home');
-
-  // Fonction pour lancer l'oraison et initialiser l'audio à coup sûr
-  const startGuidedSession = () => {
-      initAudioEngine(); // Déverrouillage explicite sur le clic
-      setView('guided');
-  };
 
   return (
     <div className={`min-h-screen font-sans transition-colors duration-500 ${theme === 'dark' ? 'dark bg-stone-900 text-white' : 'bg-stone-50 text-stone-900'}`}>
@@ -440,8 +406,7 @@ export default function App() {
               <div className="space-y-8 animate-fade-in mt-4">
                 <div className="grid gap-4">
                   <Card theme={theme} className="cursor-pointer hover:border-indigo-300 transition-colors group" >
-                    {/* UTILISATION DE startGuidedSession POUR ACTIVER L'AUDIO */}
-                    <div onClick={startGuidedSession} className="flex items-center gap-4">
+                    <div onClick={() => setView('guided')} className="flex items-center gap-4">
                       <div className={`p-3 rounded-full transition-transform group-hover:scale-110 ${theme === 'dark' ? 'bg-indigo-900 text-indigo-300' : 'bg-indigo-100 text-indigo-600'}`}>
                         <BookOpen size={24} />
                       </div>
@@ -455,7 +420,7 @@ export default function App() {
                     </div>
                   </Card>
 
-                  {/* Bouton FreeTimer supprimé */}
+                  {/* FreeTimer button removed */}
 
                   <Card theme={theme} className="cursor-pointer hover:border-indigo-300 transition-colors group">
                     <div onClick={() => setView('journal')} className="flex items-center gap-4">
@@ -505,8 +470,7 @@ function GuidedSession({ onExit, stepsConfig, theme, soundType, bellInterval }) 
   useEffect(() => { return () => { if (transitionTimeoutRef.current) clearTimeout(transitionTimeoutRef.current); }; }, [stepIndex]);
 
   useEffect(() => {
-    // Initialisation audio + lecture 1er son
-    playSoundEffect(soundType); 
+    playBell(soundType); 
     requestWakeLock();
     return () => releaseWakeLock();
   }, []);
@@ -531,6 +495,8 @@ function GuidedSession({ onExit, stepsConfig, theme, soundType, bellInterval }) 
                  setTimeLeft(0);
                  setIsActive(false);
                  endTimeRef.current = null;
+                 
+                 // Suppression du double playBell() ici pour éviter l'écho
                  
                   let dongsCount = 0;
                   if (stepIndex === 0) dongsCount = 2;
@@ -642,9 +608,7 @@ function GuidedSession({ onExit, stepsConfig, theme, soundType, bellInterval }) 
           <Button variant="ghost" onClick={prevStep} disabled={stepIndex === 0} className={stepIndex === 0 ? 'opacity-0' : ''}>
             <ChevronLeft size={20} /> Précédent
           </Button>
-          <Button variant="primary" onClick={nextStep}>
-            {isLastStep ? 'Terminer' : 'Suivant'} {isLastStep ? null : <ChevronRight size={20} />}
-          </Button>
+          {/* Bouton Suivant supprimé */}
         </div>
       </Card>
     </div>
@@ -684,7 +648,8 @@ function SettingsView({ stepsConfig, setStepsConfig, onExit, theme, soundType, s
                         key={type}
                         onClick={() => { 
                             setSoundType(type); 
-                            playSoundEffect(type); // Test du son
+                            playBell(type);
+                            // Ajustement auto de l'intervalle recommandé
                             if(type === 'clochette') setBellInterval(1000);
                             if(type === 'cloche') setBellInterval(2000);
                             if(type === 'gong') setBellInterval(3500);
@@ -720,7 +685,7 @@ function SettingsView({ stepsConfig, setStepsConfig, onExit, theme, soundType, s
                         {(bellInterval / 1000).toFixed(1)}s
                     </div>
                     <button 
-                        onClick={() => setBellInterval(prev => Math.min(30000, prev + 100))}
+                        onClick={() => setBellInterval(prev => Math.min(5000, prev + 100))}
                         className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${theme === 'dark' ? 'bg-stone-700 hover:bg-stone-600 text-stone-300' : 'bg-stone-100 hover:bg-stone-200 text-stone-600'}`}
                     >
                         <Plus size={16} />
@@ -759,7 +724,6 @@ function SettingsView({ stepsConfig, setStepsConfig, onExit, theme, soundType, s
   );
 }
 
-// ... Journal component is the same ...
 function Journal({ entries, setEntries, onExit, theme }) {
   const [text, setText] = useState('');
   const saveEntry = () => {

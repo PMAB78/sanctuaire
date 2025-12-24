@@ -46,8 +46,6 @@ const STEPS_CONTENT = [
     title: 'Entrée en oraison',
     description: (
       <>
-        {/* Ajout de '!' pour forcer les couleurs contre le mode sombre automatique de Samsung */}
-        {/* Utilisation de text-xs partout pour uniformiser et gagner de la place */}
         <span className="text-xs text-stone-900 dark:!text-white block mb-1 leading-tight">
         Allons à la rencontre de Dieu qui nous attend,<br />
         faisons un beau et lent signe de croix et disons :<br /><br />
@@ -138,35 +136,85 @@ const TEXTS = [
   { source: "Isaïe 43, 1", content: "Ne crains rien, car je te rachète, Je t'appelle par ton nom : tu es à moi !" },
 ];
 
-// --- Fonction Sonore (LECTURE DE FICHIERS WAV) ---
-const playBell = (type = 'clochette') => {
-  try {
-    // Création d'un objet Audio pointant vers le fichier dans le dossier public
-    const audioPath = `/${type}.wav`;
-    const audio = new Audio(audioPath);
-    audio.volume = 1.0; 
-    
-    // Tentative de lecture avec gestion d'erreur améliorée
-    const playPromise = audio.play();
-    if (playPromise !== undefined) {
-      playPromise.catch(error => {
-        console.warn(`Impossible de lire le son ${audioPath}. Vérifiez que le fichier existe dans le dossier public.`, error);
-      });
-    }
+// --- Moteur Audio Robuste (Web Audio API) ---
 
-  } catch (e) { 
-    console.error("Erreur système audio", e); 
+// On garde une référence globale pour l'AudioContext pour éviter qu'il soit nettoyé
+let audioContext = null;
+const audioBuffers = {}; // Cache pour les sons chargés
+
+// Initialisation du contexte (doit être appelé sur une interaction utilisateur)
+const initAudioEngine = () => {
+  if (!audioContext) {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (AudioContext) {
+      audioContext = new AudioContext();
+    }
+  }
+  if (audioContext && audioContext.state === 'suspended') {
+    audioContext.resume();
+  }
+  return audioContext;
+};
+
+// Chargement des fichiers sons en mémoire (Buffer)
+const loadSound = async (url) => {
+  if (audioBuffers[url]) return audioBuffers[url]; // Déjà chargé
+
+  try {
+    const ctx = initAudioEngine();
+    if (!ctx) return null;
+
+    const response = await fetch(url);
+    const arrayBuffer = await response.arrayBuffer();
+    const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
+    audioBuffers[url] = audioBuffer;
+    return audioBuffer;
+  } catch (error) {
+    console.error("Erreur chargement son:", url, error);
+    return null;
   }
 };
 
-// Fonction helper pour jouer plusieurs fois
+// Préchargement de tous les sons au démarrage
+const preloadAllSounds = () => {
+  ['/clochette.wav', '/cloche.wav', '/gong.wav'].forEach(loadSound);
+};
+
+// Lecture d'un son (fiable même sur mobile si context déverrouillé)
+const playSoundEffect = (type = 'clochette') => {
+  const ctx = initAudioEngine();
+  if (!ctx) return;
+
+  const url = `/${type}.wav`;
+  const buffer = audioBuffers[url];
+
+  if (buffer) {
+    // Lecture depuis la mémoire (très rapide et fiable)
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    source.connect(ctx.destination);
+    source.start(0);
+  } else {
+    // Tentative de chargement à la volée si pas en cache
+    loadSound(url).then((loadedBuffer) => {
+      if (loadedBuffer) {
+        const source = ctx.createBufferSource();
+        source.buffer = loadedBuffer;
+        source.connect(ctx.destination);
+        source.start(0);
+      }
+    });
+  }
+};
+
 const playBellsSequence = (count, interval, type = 'clochette') => {
   for (let i = 0; i < count; i++) {
     setTimeout(() => {
-      playBell(type);
+      playSoundEffect(type);
     }, i * interval);
   }
 };
+
 
 // --- Hook pour Wake Lock ---
 const useWakeLock = () => {
@@ -177,7 +225,7 @@ const useWakeLock = () => {
       try {
         wakeLockRef.current = await navigator.wakeLock.request('screen');
       } catch (err) {
-        // Silently ignore errors if wake lock is not allowed
+        // Silently ignore errors
       }
     }
   };
@@ -247,14 +295,13 @@ export default function App() {
   });
   useEffect(() => { localStorage.setItem('sanctuaire_journal', JSON.stringify(journalEntries)); }, [journalEntries]);
 
-  // INITIALISATION DU THÈME AVEC DÉTECTION DU SYSTÈME
+  // INITIALISATION DU THÈME
   const [theme, setTheme] = useState(() => {
     try { 
       const saved = localStorage.getItem('sanctuaire_theme'); 
       if (saved) {
         return JSON.parse(saved);
       }
-      // Si aucune préférence sauvegardée, on regarde le système
       if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
         return 'dark';
       }
@@ -269,19 +316,16 @@ export default function App() {
       } catch (e) { return 'clochette'; }
   });
 
-  // NOUVEAU STATE : Intervalle entre les sonneries (en ms)
   const [bellInterval, setBellInterval] = useState(() => {
       try { 
           const saved = localStorage.getItem('sanctuaire_bell_interval'); 
-          // Default to 7000 because default sound is clochette
-          return saved ? JSON.parse(saved) : 7000; 
-      } catch (e) { return 7000; }
+          return saved ? JSON.parse(saved) : 1000; 
+      } catch (e) { return 1000; }
   });
 
   useEffect(() => { localStorage.setItem('sanctuaire_sound_type', JSON.stringify(soundType)); }, [soundType]);
   useEffect(() => { localStorage.setItem('sanctuaire_bell_interval', JSON.stringify(bellInterval)); }, [bellInterval]);
 
-  // MISE À JOUR DE LA CLASSE SUR HTML (DocumentRoot)
   useEffect(() => { 
     localStorage.setItem('sanctuaire_theme', JSON.stringify(theme)); 
     if (theme === 'dark') {
@@ -291,7 +335,26 @@ export default function App() {
     }
   }, [theme]);
 
-  // Initialisation intelligente des étapes
+  // Initialisation et Préchargement Audio
+  useEffect(() => {
+    // Précharger les sons dès que possible
+    preloadAllSounds();
+    
+    // Essayer d'initialiser le contexte sur un premier geste (même scroll ou touch)
+    const unlock = () => {
+        initAudioEngine();
+        document.removeEventListener('click', unlock);
+        document.removeEventListener('touchstart', unlock);
+    };
+    document.addEventListener('click', unlock);
+    document.addEventListener('touchstart', unlock);
+    
+    return () => {
+        document.removeEventListener('click', unlock);
+        document.removeEventListener('touchstart', unlock);
+    };
+  }, []);
+
   const [stepsConfig, setStepsConfig] = useState(() => {
     try {
       const savedDurations = JSON.parse(localStorage.getItem('sanctuaire_durations') || '{}');
@@ -313,6 +376,12 @@ export default function App() {
   }, [stepsConfig]);
 
   const goHome = () => setView('home');
+
+  // Fonction pour lancer l'oraison et initialiser l'audio à coup sûr
+  const startGuidedSession = () => {
+      initAudioEngine(); // Déverrouillage explicite sur le clic
+      setView('guided');
+  };
 
   return (
     <div className={`min-h-screen font-sans transition-colors duration-500 ${theme === 'dark' ? 'dark bg-stone-900 text-white' : 'bg-stone-50 text-stone-900'}`}>
@@ -371,7 +440,8 @@ export default function App() {
               <div className="space-y-8 animate-fade-in mt-4">
                 <div className="grid gap-4">
                   <Card theme={theme} className="cursor-pointer hover:border-indigo-300 transition-colors group" >
-                    <div onClick={() => setView('guided')} className="flex items-center gap-4">
+                    {/* UTILISATION DE startGuidedSession POUR ACTIVER L'AUDIO */}
+                    <div onClick={startGuidedSession} className="flex items-center gap-4">
                       <div className={`p-3 rounded-full transition-transform group-hover:scale-110 ${theme === 'dark' ? 'bg-indigo-900 text-indigo-300' : 'bg-indigo-100 text-indigo-600'}`}>
                         <BookOpen size={24} />
                       </div>
@@ -384,6 +454,8 @@ export default function App() {
                       <ChevronRight className="text-stone-300" />
                     </div>
                   </Card>
+
+                  {/* Bouton FreeTimer supprimé */}
 
                   <Card theme={theme} className="cursor-pointer hover:border-indigo-300 transition-colors group">
                     <div onClick={() => setView('journal')} className="flex items-center gap-4">
@@ -433,7 +505,8 @@ function GuidedSession({ onExit, stepsConfig, theme, soundType, bellInterval }) 
   useEffect(() => { return () => { if (transitionTimeoutRef.current) clearTimeout(transitionTimeoutRef.current); }; }, [stepIndex]);
 
   useEffect(() => {
-    playBell(soundType); 
+    // Initialisation audio + lecture 1er son
+    playSoundEffect(soundType); 
     requestWakeLock();
     return () => releaseWakeLock();
   }, []);
@@ -458,8 +531,6 @@ function GuidedSession({ onExit, stepsConfig, theme, soundType, bellInterval }) 
                  setTimeLeft(0);
                  setIsActive(false);
                  endTimeRef.current = null;
-                 
-                 // Suppression du double playBell() ici pour éviter l'écho
                  
                   let dongsCount = 0;
                   if (stepIndex === 0) dongsCount = 2;
@@ -583,8 +654,7 @@ function GuidedSession({ onExit, stepsConfig, theme, soundType, bellInterval }) 
 function SettingsView({ stepsConfig, setStepsConfig, onExit, theme, soundType, setSoundType, bellInterval, setBellInterval }) {
   const updateDuration = (index, change) => {
     const newSteps = [...stepsConfig];
-    // MODIF : Pas de 30s
-    const newDuration = Math.max(30, newSteps[index].duration + change * 30);
+    const newDuration = Math.max(10, newSteps[index].duration + change * 10);
     newSteps[index].duration = newDuration;
     setStepsConfig(newSteps);
   };
@@ -614,11 +684,10 @@ function SettingsView({ stepsConfig, setStepsConfig, onExit, theme, soundType, s
                         key={type}
                         onClick={() => { 
                             setSoundType(type); 
-                            playBell(type);
-                            // MODIF : Intervalle automatique à 7s pour clochette, 4s pour cloche, 10s pour gong
-                            if(type === 'clochette') setBellInterval(7000);
-                            if(type === 'cloche') setBellInterval(4000);
-                            if(type === 'gong') setBellInterval(10000);
+                            playSoundEffect(type); // Test du son
+                            if(type === 'clochette') setBellInterval(1000);
+                            if(type === 'cloche') setBellInterval(2000);
+                            if(type === 'gong') setBellInterval(3500);
                         }}
                         className={`py-3 px-2 rounded-xl text-sm font-medium transition-all border-2 flex flex-col items-center gap-2
                             ${soundType === type 
@@ -651,7 +720,6 @@ function SettingsView({ stepsConfig, setStepsConfig, onExit, theme, soundType, s
                         {(bellInterval / 1000).toFixed(1)}s
                     </div>
                     <button 
-                        // MODIF : Max augmenté à 30000 (30s)
                         onClick={() => setBellInterval(prev => Math.min(30000, prev + 100))}
                         className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${theme === 'dark' ? 'bg-stone-700 hover:bg-stone-600 text-stone-300' : 'bg-stone-100 hover:bg-stone-200 text-stone-600'}`}
                     >
@@ -691,6 +759,7 @@ function SettingsView({ stepsConfig, setStepsConfig, onExit, theme, soundType, s
   );
 }
 
+// ... Journal component is the same ...
 function Journal({ entries, setEntries, onExit, theme }) {
   const [text, setText] = useState('');
   const saveEntry = () => {

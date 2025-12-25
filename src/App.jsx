@@ -107,7 +107,7 @@ const STEPS_CONTENT = [
         </span>
       </>
     ),
-    defaultDuration: 540 
+    defaultDuration: 540 // 9 minutes
   },
   {
     id: 'resolution',
@@ -313,16 +313,15 @@ const Card = ({ children, className = '', theme }) => {
 export default function App() {
   const [view, setView] = useState('home'); 
   
-  // State pour la citation du jour (évite le changement à chaque render)
-  const [dailyQuote, setDailyQuote] = useState(TEXTS[0]);
+  // State pour la citation du jour (fixée au chargement)
+  const [dailyQuote, setDailyQuote] = useState(null);
 
-  // Persistance (Clés renommées en 'benedictus_')
+  // Persistance
   const [journalEntries, setJournalEntries] = useState(() => {
     try { const saved = localStorage.getItem('benedictus_journal'); return saved ? JSON.parse(saved) : []; } catch (e) { return []; }
   });
   useEffect(() => { localStorage.setItem('benedictus_journal', JSON.stringify(journalEntries)); }, [journalEntries]);
 
-  // INITIALISATION DU THÈME
   const [theme, setTheme] = useState(() => {
     try { 
       const saved = localStorage.getItem('benedictus_theme'); 
@@ -336,9 +335,6 @@ export default function App() {
       try { const saved = localStorage.getItem('benedictus_sound_type'); return saved ? JSON.parse(saved) : 'clochette'; } catch (e) { return 'clochette'; }
   });
 
-  // NOUVEAU STATE : Intervalle entre les sonneries (en ms) - supprimé de l'UI mais gardé en logique interne auto
-  // Plus besoin de state persistant pour l'intervalle car auto-calculé
-
   useEffect(() => { localStorage.setItem('benedictus_sound_type', JSON.stringify(soundType)); }, [soundType]);
 
   useEffect(() => { 
@@ -347,9 +343,10 @@ export default function App() {
     else document.documentElement.classList.remove('dark');
   }, [theme]);
 
-  // Initialisation audio + Titre onglet + Citation aléatoire unique
+  // Initialisation au chargement
   useEffect(() => {
       document.title = "Benedictus";
+      // Sélection d'une citation aléatoire UNE SEULE FOIS au montage
       setDailyQuote(TEXTS[Math.floor(Math.random() * TEXTS.length)]);
       
       preloadSounds();
@@ -387,23 +384,26 @@ export default function App() {
         <GuidedSession onExit={goHome} stepsConfig={stepsConfig} theme={theme} soundType={soundType} />
       ) : (
         <>
-          <header className="px-6 py-6 flex justify-between items-start gap-6 max-w-2xl mx-auto">
-            <div className="flex-1 flex flex-col items-start gap-4">
+          {/* Header compacté */}
+          <header className="px-6 py-4 flex justify-between items-start gap-4 max-w-2xl mx-auto">
+            <div className="flex-1 flex flex-col items-start gap-2">
               <div className="text-left">
                   <h1 className={`text-3xl font-bold mb-1 ${theme === 'dark' ? 'text-indigo-300' : 'text-indigo-900'}`}>Benedictus</h1>
                   <p className={`text-sm italic ${theme === 'dark' ? 'text-stone-300' : 'text-stone-600'}`}>Vive Jésus dans nos cœurs !</p>
               </div>
+              
               <div className="cursor-pointer" onClick={goHome}>
-                <blockquote className={`font-serif text-sm italic leading-relaxed border-l-2 pl-3 ${theme === 'dark' ? 'text-stone-200 border-indigo-500' : 'text-stone-800 border-indigo-300'}`}>
+                {/* Citation réduite text-xs */}
+                <blockquote className={`font-serif text-xs italic leading-relaxed border-l-2 pl-3 ${theme === 'dark' ? 'text-stone-200 border-indigo-500' : 'text-stone-800 border-indigo-300'}`}>
                   "Voici que je me tiens à la porte, et je frappe. Si quelqu’un entend ma voix et ouvre la porte, j’entrerai chez lui ; je prendrai mon repas avec lui, et lui avec moi."
                 </blockquote>
-                <div className={`text-xs font-bold mt-1 pl-3 ${theme === 'dark' ? 'text-indigo-300' : 'text-indigo-800'}`}>
+                <div className={`text-[10px] font-bold mt-1 pl-3 ${theme === 'dark' ? 'text-indigo-300' : 'text-indigo-800'}`}>
                   Ap 3,20
                 </div>
               </div>
-              
-               {/* 4) Boutons sous le texte */}
-              <div className="flex gap-2">
+
+               {/* Boutons sous le texte */}
+               <div className="flex gap-2 mt-1">
                  <button onClick={() => setView('settings')} className={`p-2 rounded-full ${theme === 'dark' ? 'hover:bg-stone-800 text-stone-400' : 'hover:bg-stone-200 text-stone-600'}`}><Settings size={20} /></button>
                  <button onClick={() => setTheme(prev => prev === 'light' ? 'dark' : 'light')} className={`p-2 rounded-full ${theme === 'dark' ? 'hover:bg-stone-800' : 'hover:bg-stone-200'}`}>{theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}</button>
               </div>
@@ -414,11 +414,11 @@ export default function App() {
             </div>
           </header>
 
-          <main className="max-w-2xl mx-auto px-4 pb-20 pt-4">
+          <main className="max-w-2xl mx-auto px-4 pb-20 pt-2">
             {view === 'home' && (
-              <div className="space-y-8 animate-fade-in mt-4">
-                <div className="grid gap-4">
-                  {/* BOUTON ORAISON GUIDEE MODIFIE (Icone Coeur + Taille) */}
+              <div className="space-y-6 animate-fade-in mt-2">
+                <div className="grid gap-3">
+                  {/* BOUTON ORAISON GUIDEE COMPACT */}
                   <Card theme={theme} className="cursor-pointer hover:border-indigo-300 transition-colors group !p-4" >
                     <div onClick={startGuided} className="flex items-center gap-4">
                       <div className={`p-3 rounded-full transition-transform group-hover:scale-110 ${theme === 'dark' ? 'bg-indigo-900 text-indigo-300' : 'bg-indigo-100 text-indigo-600'}`}>
@@ -427,29 +427,32 @@ export default function App() {
                       </div>
                       <div className="flex-1">
                         <h3 className="font-semibold text-lg">Oraison guidée</h3>
-                        {/* Texte explicatif supprimé */}
                       </div>
                       <ChevronRight className="text-stone-300" />
                     </div>
                   </Card>
 
-                  {/* BOUTON CARNET SPIRITUEL MODIFIE (Taille) */}
+                  {/* BOUTON CARNET SPIRITUEL COMPACT */}
                   <Card theme={theme} className="cursor-pointer hover:border-indigo-300 transition-colors group !p-4">
                     <div onClick={() => setView('journal')} className="flex items-center gap-4">
-                      <div className={`p-3 rounded-full transition-transform group-hover:scale-110 ${theme === 'dark' ? 'bg-amber-900 text-amber-300' : 'bg-amber-100 text-amber-600'}`}><PenTool size={24} /></div>
+                      <div className={`p-3 rounded-full transition-transform group-hover:scale-110 ${theme === 'dark' ? 'bg-amber-900 text-amber-300' : 'bg-amber-100 text-amber-600'}`}>
+                        <PenTool size={24} />
+                      </div>
                       <div className="flex-1">
                         <h3 className="font-semibold text-lg">Carnet Spirituel</h3>
-                         {/* Texte explicatif supprimé */}
                       </div>
                       <ChevronRight className="text-stone-300" />
                     </div>
                   </Card>
                 </div>
 
-                <div className={`mt-8 p-6 rounded-2xl text-center italic border ${theme === 'dark' ? 'bg-stone-800 text-white border-stone-700' : 'bg-stone-100 text-stone-800 border-stone-200'}`}>
-                  "{dailyQuote.content}"
-                  <div className={`text-xs font-bold mt-2 ${theme === 'dark' ? 'text-indigo-300' : 'text-indigo-800'}`}>— {dailyQuote.source}</div>
-                </div>
+                {dailyQuote && (
+                    <div className={`mt-6 p-6 rounded-2xl text-center italic border ${theme === 'dark' ? 'bg-stone-800 text-white border-stone-700' : 'bg-stone-100 text-stone-800 border-stone-200'}`}>
+                    "{dailyQuote.content}"
+                    {/* 8) Correction Auteur */}
+                    <div className={`text-xs font-bold mt-2 ${theme === 'dark' ? 'text-indigo-300' : 'text-indigo-800'}`}>— {dailyQuote.source}</div>
+                    </div>
+                )}
               </div>
             )}
             {view === 'journal' && <Journal entries={journalEntries} setEntries={setJournalEntries} onExit={goHome} theme={theme} />}
@@ -502,7 +505,6 @@ function GuidedSession({ onExit, stepsConfig, theme, soundType }) {
              const remaining = Math.ceil((endTimeRef.current - now) / 1000);
              
              if (remaining <= 0) {
-                 // 3) Transition immédiate
                  setTimeLeft(0);
                  setIsActive(false); 
                  endTimeRef.current = null;
@@ -513,15 +515,18 @@ function GuidedSession({ onExit, stepsConfig, theme, soundType }) {
                   else if (stepIndex === 2) dongsCount = 2;
                   else if (stepIndex === 3) dongsCount = 1;
 
-                  // Lancement du son en parallèle
-                  playBellsSequence(dongsCount, soundType);
+                  // Calcul dynamique de l'intervalle
+                  const soundDuration = getSoundDuration(soundType);
+                  const bellInterval = (soundDuration + 1) * 1000;
 
+                  playBellsSequence(dongsCount, bellInterval, soundType);
+
+                  // Transition immédiate
                   if (stepIndex < stepsConfig.length - 1) {
                       const nextIdx = stepIndex + 1;
                       setStepIndex(nextIdx);
                       const nextDuration = stepsConfig[nextIdx].duration;
                       setTimeLeft(nextDuration);
-                      // Démarrage immédiat
                       endTimeRef.current = Date.now() + nextDuration * 1000; 
                       setIsActive(true); 
                   } else { 
@@ -588,9 +593,9 @@ function GuidedSession({ onExit, stepsConfig, theme, soundType }) {
             <div className={`text-3xl md:text-4xl font-light tabular-nums tracking-tight opacity-80 ${theme === 'dark' ? 'text-indigo-200' : 'text-indigo-900'}`}>
               {formatTime(timeLeft)}
             </div>
-            <div className={`rounded-full w-10 h-10 !p-0 flex items-center justify-center border-2 ${isActive ? 'opacity-100' : 'opacity-50'} ${theme === 'dark' ? 'border-indigo-800' : 'border-indigo-200'}`} onClick={toggleTimer}>
+            <Button variant="outline" onClick={toggleTimer} className={`rounded-full w-10 h-10 !p-0 flex items-center justify-center border-2 ${theme === 'dark' ? 'border-indigo-800 hover:border-indigo-500' : 'border-indigo-200 hover:border-indigo-500'}`}>
               {isActive ? <Pause size={18} /> : <Play size={18} className="ml-1" />}
-            </div>
+            </Button>
           </div>
         </div>
       </Card>
@@ -622,7 +627,6 @@ function SettingsView({ stepsConfig, setStepsConfig, onExit, theme, soundType, s
 
       <Card theme={theme} className="flex-1 overflow-y-auto custom-scrollbar">
         
-        {/* SECTION SONNERIE */}
         <div className="mb-8">
             <h3 className="text-sm font-semibold text-stone-500 uppercase tracking-wide mb-4">Sonnerie</h3>
             <div className="grid grid-cols-3 gap-3 mb-6">
@@ -646,7 +650,6 @@ function SettingsView({ stepsConfig, setStepsConfig, onExit, theme, soundType, s
                     </button>
                 ))}
             </div>
-            {/* 1) Plus d'intervalle manuel */}
         </div>
 
         <h3 className="text-sm font-semibold text-stone-500 uppercase tracking-wide mb-6">Durée des étapes</h3>
@@ -675,7 +678,7 @@ function SettingsView({ stepsConfig, setStepsConfig, onExit, theme, soundType, s
     </div>
   );
 }
-// ... Journal component unchanged
+
 function Journal({ entries, setEntries, onExit, theme }) {
   const [text, setText] = useState('');
   const saveEntry = () => {

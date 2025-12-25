@@ -151,7 +151,7 @@ const initAudioContext = () => {
   return audioCtx;
 };
 
-// Fallback : Synthétiseur si le fichier WAV ne marche pas
+// Fallback : Synthétiseur
 function playSynthBell(type) {
     const ctx = initAudioContext();
     if (!ctx) return;
@@ -206,18 +206,19 @@ function preloadSounds() {
     ['/clochette.wav', '/cloche.wav', '/gong.wav'].forEach(loadSoundToCache);
 }
 
-// Récupère la durée réelle du son depuis le buffer, ou une valeur par défaut
+// Récupère la durée pour calculer l'intervalle : Durée + 1s
 function getSoundDuration(type) {
     const filename = `/${type}.wav`;
     const buffer = audioBuffers[filename];
     if (buffer) {
         return buffer.duration;
     }
-    // Fallbacks si le fichier n'est pas encore chargé
+    // Fallbacks approximatifs si fichier pas chargé (pour correspondre aux demandes)
+    // Intervalle voulu = Durée + 1s. Donc Durée = Intervalle - 1s
     switch (type) {
-        case 'clochette': return 0.7;
-        case 'cloche': return 2.5;
-        case 'gong': return 4.0;
+        case 'clochette': return 6.0; // Intervalle 7s
+        case 'cloche': return 3.0;    // Intervalle 4s
+        case 'gong': return 9.0;      // Intervalle 10s
         default: return 1.0;
     }
 }
@@ -248,8 +249,8 @@ function playSoundFromCache(type = 'clochette') {
   }
 }
 
-// 2) Calcul de l'intervalle : durée + 1 seconde
 function playBellsSequence(count, type = 'clochette') {
+  // Calcul automatique de l'intervalle : durée du son + 1 seconde
   const soundDuration = getSoundDuration(type);
   const interval = (soundDuration + 1) * 1000; // en ms
 
@@ -305,15 +306,20 @@ const Card = ({ children, className = '', theme }) => {
 export default function App() {
   const [view, setView] = useState('home'); 
   
-  // Persistance
+  // MISE A JOUR DU TITRE DE L'ONGLET
+  useEffect(() => {
+    document.title = "Benedictus";
+  }, []);
+
+  // Persistance (Clés renommées en 'benedictus_')
   const [journalEntries, setJournalEntries] = useState(() => {
-    try { const saved = localStorage.getItem('sanctuaire_journal'); return saved ? JSON.parse(saved) : []; } catch (e) { return []; }
+    try { const saved = localStorage.getItem('benedictus_journal'); return saved ? JSON.parse(saved) : []; } catch (e) { return []; }
   });
-  useEffect(() => { localStorage.setItem('sanctuaire_journal', JSON.stringify(journalEntries)); }, [journalEntries]);
+  useEffect(() => { localStorage.setItem('benedictus_journal', JSON.stringify(journalEntries)); }, [journalEntries]);
 
   const [theme, setTheme] = useState(() => {
     try { 
-      const saved = localStorage.getItem('sanctuaire_theme'); 
+      const saved = localStorage.getItem('benedictus_theme'); 
       if (saved) return JSON.parse(saved);
       if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) return 'dark';
       return 'light'; 
@@ -321,20 +327,17 @@ export default function App() {
   });
   
   const [soundType, setSoundType] = useState(() => {
-      try { const saved = localStorage.getItem('sanctuaire_sound_type'); return saved ? JSON.parse(saved) : 'clochette'; } catch (e) { return 'clochette'; }
+      try { const saved = localStorage.getItem('benedictus_sound_type'); return saved ? JSON.parse(saved) : 'clochette'; } catch (e) { return 'clochette'; }
   });
 
-  // 1) Suppression de l'intervalle dans le state
-
-  useEffect(() => { localStorage.setItem('sanctuaire_sound_type', JSON.stringify(soundType)); }, [soundType]);
+  useEffect(() => { localStorage.setItem('benedictus_sound_type', JSON.stringify(soundType)); }, [soundType]);
 
   useEffect(() => { 
-    localStorage.setItem('sanctuaire_theme', JSON.stringify(theme)); 
+    localStorage.setItem('benedictus_theme', JSON.stringify(theme)); 
     if (theme === 'dark') document.documentElement.classList.add('dark');
     else document.documentElement.classList.remove('dark');
   }, [theme]);
 
-  // Initialisation audio
   useEffect(() => {
       preloadSounds();
       const unlockAudio = () => { initAudioEngine(); document.removeEventListener('click', unlockAudio); document.removeEventListener('touchstart', unlockAudio); };
@@ -345,14 +348,16 @@ export default function App() {
 
   const [stepsConfig, setStepsConfig] = useState(() => {
     try {
-      const savedDurations = JSON.parse(localStorage.getItem('sanctuaire_durations') || '{}');
+      const savedDurations = JSON.parse(localStorage.getItem('benedictus_durations') || '{}');
       return STEPS_CONTENT.map(step => ({ ...step, duration: savedDurations[step.id] || step.defaultDuration }));
-    } catch (e) { return STEPS_CONTENT.map(step => ({ ...step, duration: step.defaultDuration })); }
+    } catch (e) {
+      return STEPS_CONTENT.map(step => ({ ...step, duration: step.defaultDuration }));
+    }
   });
 
   useEffect(() => {
     const durationsToSave = stepsConfig.reduce((acc, step) => { acc[step.id] = step.duration; return acc; }, {});
-    localStorage.setItem('sanctuaire_durations', JSON.stringify(durationsToSave));
+    localStorage.setItem('benedictus_durations', JSON.stringify(durationsToSave));
   }, [stepsConfig]);
 
   const goHome = () => setView('home');
@@ -367,14 +372,11 @@ export default function App() {
       ) : (
         <>
           <header className="px-6 py-6 flex justify-between items-start gap-6 max-w-2xl mx-auto">
-            
-            {/* 4) Gauche : Texte + Boutons */}
             <div className="flex-1 flex flex-col items-start gap-4">
               <div className="text-left">
                   <h1 className={`text-3xl font-bold mb-1 ${theme === 'dark' ? 'text-indigo-300' : 'text-indigo-900'}`}>Benedictus</h1>
                   <p className={`text-sm italic ${theme === 'dark' ? 'text-stone-300' : 'text-stone-600'}`}>Vive Jésus dans nos cœurs !</p>
               </div>
-              
               <div className="cursor-pointer" onClick={goHome}>
                 <blockquote className={`font-serif text-sm italic leading-relaxed border-l-2 pl-3 ${theme === 'dark' ? 'text-stone-200 border-indigo-500' : 'text-stone-800 border-indigo-300'}`}>
                   "Voici que je me tiens à la porte, et je frappe. Si quelqu’un entend ma voix et ouvre la porte, j’entrerai chez lui ; je prendrai mon repas avec lui, et lui avec moi."
@@ -383,13 +385,12 @@ export default function App() {
                   Ap 3,20
                 </div>
               </div>
-
-               {/* Boutons déplacés ici */}
-               <div className="flex gap-2">
+              
+               {/* 4) Boutons sous le texte */}
+              <div className="flex gap-2">
                  <button onClick={() => setView('settings')} className={`p-2 rounded-full ${theme === 'dark' ? 'hover:bg-stone-800 text-stone-400' : 'hover:bg-stone-200 text-stone-600'}`}><Settings size={20} /></button>
-                 <button onClick={() => setTheme(prev => prev === 'light' ? 'dark' : 'light')} className={`p-2 rounded-full ${theme === 'dark' ? 'hover:bg-stone-800' : 'hover:bg-stone-200'}`}>{theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}</button>
+                <button onClick={() => setTheme(prev => prev === 'light' ? 'dark' : 'light')} className={`p-2 rounded-full ${theme === 'dark' ? 'hover:bg-stone-800' : 'hover:bg-stone-200'}`}>{theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}</button>
               </div>
-
             </div>
 
             <div className="shrink-0 flex flex-col items-center gap-4">
@@ -477,7 +478,7 @@ function GuidedSession({ onExit, stepsConfig, theme, soundType }) {
              const remaining = Math.ceil((endTimeRef.current - now) / 1000);
              
              if (remaining <= 0) {
-                 // 3) TRANSITION IMMÉDIATE + SON EN PARALLÈLE
+                 // 3) Transition immédiate
                  setTimeLeft(0);
                  setIsActive(false); 
                  endTimeRef.current = null;
@@ -488,17 +489,15 @@ function GuidedSession({ onExit, stepsConfig, theme, soundType }) {
                   else if (stepIndex === 2) dongsCount = 2;
                   else if (stepIndex === 3) dongsCount = 1;
 
-                  // Lancement du son
+                  // Lancement du son en parallèle
                   playBellsSequence(dongsCount, soundType);
 
                   if (stepIndex < stepsConfig.length - 1) {
                       const nextIdx = stepIndex + 1;
-                      const nextDuration = stepsConfig[nextIdx].duration;
-                      
-                      // Changement d'étape instantané
                       setStepIndex(nextIdx);
+                      const nextDuration = stepsConfig[nextIdx].duration;
                       setTimeLeft(nextDuration);
-                      // On fixe la nouvelle cible immédiatement
+                      // Démarrage immédiat
                       endTimeRef.current = Date.now() + nextDuration * 1000; 
                       setIsActive(true); 
                   } else { 
@@ -623,7 +622,7 @@ function SettingsView({ stepsConfig, setStepsConfig, onExit, theme, soundType, s
                     </button>
                 ))}
             </div>
-            {/* 1) Plus d'intervalle à saisir ici */}
+            {/* 1) Plus d'intervalle manuel */}
         </div>
 
         <h3 className="text-sm font-semibold text-stone-500 uppercase tracking-wide mb-6">Durée des étapes</h3>
@@ -652,4 +651,54 @@ function SettingsView({ stepsConfig, setStepsConfig, onExit, theme, soundType, s
     </div>
   );
 }
-// ... Journal component unchanged
+
+function Journal({ entries, setEntries, onExit, theme }) {
+  const [text, setText] = useState('');
+  const saveEntry = () => {
+    if (!text.trim()) return;
+    const newEntry = { id: Date.now(), date: new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }), text: text };
+    setEntries([newEntry, ...entries]); setText('');
+  };
+  const deleteEntry = (id) => { setEntries(entries.filter(e => e.id !== id)); };
+
+  return (
+    <div className="h-[85vh] flex flex-col">
+       <div className="flex justify-between items-center mb-4">
+        <h2 className={`text-2xl font-serif ${theme === 'dark' ? 'text-white' : 'text-stone-900'}`}>Mon Carnet</h2>
+        <button onClick={onExit} className={`p-2 rounded-full ${theme === 'dark' ? 'hover:bg-stone-700' : 'hover:bg-stone-200'}`}><X size={24} /></button>
+      </div>
+
+      <div className="grid md:grid-cols-2 gap-6 h-full overflow-hidden">
+        <div className="flex flex-col gap-4">
+          <Card theme={theme} className="flex-1 flex flex-col p-4">
+            <label className="text-sm font-semibold text-stone-500 mb-2 uppercase tracking-wide">Nouvelle Note</label>
+            <textarea 
+              className={`flex-1 w-full p-4 rounded-lg resize-none focus:outline-none focus:ring-2 leading-relaxed ${theme === 'dark' ? 'bg-stone-900 focus:ring-indigo-800 text-white' : 'bg-stone-50 focus:ring-indigo-200 text-stone-900'}`}
+              placeholder="Quelles grâces avez-vous reçues ? Quelle résolution prenez-vous ?"
+              value={text} onChange={(e) => setText(e.target.value)}
+            />
+            <div className="mt-4 flex justify-end">
+              <Button onClick={saveEntry} disabled={!text.trim()}>Enregistrer</Button>
+            </div>
+          </Card>
+        </div>
+
+        <div className="overflow-y-auto pr-2 space-y-4 pb-10 custom-scrollbar">
+          {entries.length === 0 && (
+            <div className="text-center py-10 text-stone-400">
+              <PenTool size={48} className="mx-auto mb-4 opacity-20" />
+              <p>Votre carnet est vide pour le moment.</p>
+            </div>
+          )}
+          {entries.map(entry => (
+            <div key={entry.id} className={`p-5 rounded-xl border shadow-sm relative group animate-fade-in-up ${theme === 'dark' ? 'bg-stone-800 border-stone-700' : 'bg-white border-stone-100'}`}>
+              <div className="text-xs font-bold text-indigo-500 uppercase mb-2">{entry.date}</div>
+              <p className={`whitespace-pre-wrap font-serif ${theme === 'dark' ? 'text-white' : 'text-stone-900'}`}>{entry.text}</p>
+              <button onClick={() => deleteEntry(entry.id)} className="absolute top-2 right-2 p-2 text-stone-300 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"><X size={16} /></button>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
